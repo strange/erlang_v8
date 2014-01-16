@@ -10,6 +10,15 @@ The most notable feature is that you can eval things like "while (true) {}"
 and have the v8 VM actually terminate when it times out. I'm also planning
 two-way communication, resetting context etc.
 
+## Building
+
+Git and Python 2 (for GYP) are required to build v8. Build scripts are
+currently hardcoded to ia32 and the app might require a little fiddling to
+build properly on other systems:
+
+    rebar get-deps
+    rebar compile
+
 ## Examples
 
 Start a VM:
