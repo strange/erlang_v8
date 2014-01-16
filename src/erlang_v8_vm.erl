@@ -71,7 +71,6 @@ handle_call({call, FunctionName, Args, Timeout}, From, State) ->
 handle_call({eval, Source, Timeout}, _From, #state{port = Port} = State) ->
     case eval_js(Port, Source, Timeout) of
         {ok, Response} ->
-            %% TODO: eval should return the result
             {reply, {ok, Response}, State};
         {error, timeout} ->
             {reply, {error, timeout}, start_port(kill_port(State))};
