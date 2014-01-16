@@ -30,6 +30,7 @@ Define a function:
     {ok, undefined} = erlang_v8:eval(VM, <<"function sum(a, b) { return a + b }">>).
 
 Run the function: 
+
     {ok, 2} = erlang_v8:call(VM, <<"sum">>, [1, 1]).
 
 Stop the VM:
