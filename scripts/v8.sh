@@ -9,14 +9,18 @@ SOURCE_DIR=$ROOT/c_src
 
 ARCH="ia32" # x64
 
+V8_SHA="49744859536225e7ac3b726e5b019dd99e127e6f"
+
 checkout() {
     mkdir -p "$LIB_DIR"
     if [ -d "$V8_DIR" ]; then
         cd $V8_DIR
         git pull origin master
+        git reset --hard $V8_SHA
     else
         cd $LIB_DIR
         git clone git://github.com/v8/v8.git v8
+        git reset --hard $V8_SHA
     fi
 }
 
