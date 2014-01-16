@@ -35,22 +35,6 @@ build_v8() {
     make $ARCH.release 
 }
 
-build_minimal() {
-    mkdir -p $DIST_DIR
-    cd $SOURCE_DIR
-    # TODO: move to other Makefile! :)
-	g++ -Iinclude minimal.cc \
-        -o $DIST_DIR/minimal \
-        -Wl,--start-group \
-        $V8_DIR/out/$ARCH.release/obj.target/{tools/gyp/libv8_{base.$ARCH,snapshot},third_party/icu/libicu{uc,i18n,data}}.a \
-        -Wl,--end-group \
-        -I $V8_DIR/include \
-        -lrt \
-        -lv8 \
-        -lpthread \
-        -v 
-}
-
 build_dist() {
     mkdir -p $DIST_DIR
     cd $SOURCE_DIR
@@ -94,10 +78,6 @@ case "$1" in
 
     build-dist)
         build_dist
-        ;;
-
-    build-minimal)
-        build_minimal
         ;;
 
     clean)
