@@ -135,7 +135,7 @@ void eval(Isolate* isolate, string input) {
 }
 
 int main(int argc, char* argv[]) {
-    ios_base::sync_with_stdio(true);
+    ios_base::sync_with_stdio(false);
 
     Isolate* isolate = Isolate::GetCurrent();
     HandleScope handle_scope(isolate);
