@@ -1,0 +1,16 @@
+{application, erlang_v8,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {modules, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  lager,
+                  jiffy
+                 ]},
+  {mod, {erlang_v8_app, []}},
+  {env, [
+    ]}
+ ]}.

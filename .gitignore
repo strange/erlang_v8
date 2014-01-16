@@ -1,0 +1,10 @@
+*.beam
+.DS_Store
+deps/*
+ebin/*
+.eunit/*
+erl_crash.dump
+/log
+/c_src/v8
+/c_src/main
+/libs
