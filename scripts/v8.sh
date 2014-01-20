@@ -7,9 +7,17 @@ V8_DIR=$ROOT/libs/v8
 DIST_DIR=$ROOT/libs/dist
 SOURCE_DIR=$ROOT/c_src
 
-ARCH="ia32" # x64
+ARCH=`getconf LONG_BIT`
+
+if [ $ARCH == 32 ]; then
+    BUILD_ARCH="ia${ARCH}"
+else
+    BUILD_ARCH="x${ARCH}"
+fi
 
 V8_SHA="49744859536225e7ac3b726e5b019dd99e127e6f"
+
+echo $BUILD_ARCH
 
 checkout() {
     mkdir -p "$LIB_DIR"
@@ -36,7 +44,7 @@ build_v8() {
         exit 1;
     fi
 	cd $V8_DIR
-    make $ARCH.release 
+    make $BUILD_ARCH.release 
 }
 
 build_dist() {
@@ -46,7 +54,7 @@ build_dist() {
 	g++ -Iinclude erlang_v8.cc \
         -o $DIST_DIR/erlang_v8 \
         -Wl,--start-group \
-        $V8_DIR/out/$ARCH.release/obj.target/{tools/gyp/libv8_{base.$ARCH,snapshot},third_party/icu/libicu{uc,i18n,data}}.a \
+        $V8_DIR/out/$BUILD_ARCH.release/obj.target/{tools/gyp/libv8_{base.$BUILD_ARCH,snapshot},third_party/icu/libicu{uc,i18n,data}}.a \
         -Wl,--end-group \
         -I $V8_DIR/include \
         -lrt \
