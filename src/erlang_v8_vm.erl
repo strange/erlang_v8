@@ -19,7 +19,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--define(EXECUTABLE, "libs/dist/erlang_v8").
+-define(EXECUTABLE, "priv/erlang_v8").
 -define(SPAWN_OPTS, [{packet, 2}, binary]).
 -define(DEFAULT_TIMEOUT, 5000).
 

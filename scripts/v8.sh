@@ -3,7 +3,7 @@ ROOT=$(pwd)
 
 LIB_DIR=$ROOT/libs
 V8_DIR=$ROOT/libs/v8
-DIST_DIR=$ROOT/libs/dist
+BIN_DIR=$ROOT/priv
 SOURCE_DIR=$ROOT/c_src
 
 ARCH=`getconf LONG_BIT`
@@ -51,7 +51,7 @@ build_v8() {
 }
 
 build_dist() {
-    mkdir -p $DIST_DIR
+    mkdir -p $BIN_DIR
 
     RELEASE_DIR=$V8_DIR/out/$BUILD_ARCH.release
     if [ "$(uname)" == "Darwin" ]; then
@@ -61,7 +61,7 @@ build_dist() {
         # (clang).
         g++ -Iinclude $SOURCE_DIR/erlang_v8.cc \
             -stdlib=libstdc++ \
-            -o $DIST_DIR/erlang_v8 \
+            -o $BIN_DIR/erlang_v8 \
             $RELEASE_DIR/libv8_{base.$BUILD_ARCH,snapshot}.a \
             $RELEASE_DIR/libicu{uc,i18n,data}.a \
             -I $V8_DIR/include \
@@ -69,7 +69,7 @@ build_dist() {
             -v
     else
         g++ -Iinclude $SOURCE_DIR/erlang_v8.cc \
-            -o $DIST_DIR/erlang_v8 \
+            -o $BIN_DIR/erlang_v8 \
             -Wl,--start-group \
             $RELEASE_DIR/obj.target/{tools/gyp/libv8_{base.$BUILD_ARCH,snapshot},third_party/icu/libicu{uc,i18n,data}}.a \
             -Wl,--end-group \
@@ -80,13 +80,13 @@ build_dist() {
 }
 
 clean() {
-    rm -rf $DIST_DIR
+    rm -rf $BIN_DIR/erlang_v8
     cd $V8_DIR
     make clean
 }
 
 distclean() {
-    rm -rf $LIB_DIR
+    rm -rf $V8_DIR
 }
 
 case "$1" in
