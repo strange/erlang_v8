@@ -1,10 +1,10 @@
 # erlang_v8
 
-Run JavaScript code in an external OS process.
+Run JavaScript from Erlang in an external OS process.
 
-This is just an experiment to see if embedding v8 in a OS process is more
-predictable than using a port driver or NIF. I will give the project proper
-attention if the experiment works out.
+This is just an experiment to see if embedding v8 in an actual OS process is
+more predictable than using a port driver or NIF. I will give the project
+proper attention if the experiment works out.
 
 The most notable feature is that you can eval things like "while (true) {}"
 and have the v8 VM actually terminate when it times out. I'm also planning
@@ -12,14 +12,24 @@ two-way communication, resetting context etc.
 
 ## Building
 
-Git and Python 2 (for GYP) are required to build v8. Build scripts are
-currently hardcoded to ia32 and the app might require a little fiddling to
-build properly on other systems:
+Git, Subversion, and Python 2.6-2.7 (for GYP) are required to build v8.
+
+Build using make:
+
+    make
+
+Or with rebar:
 
     rebar get-deps
     rebar compile
 
-## Examples
+## Tests
+
+You can run a few tests to verify basic functionality:
+
+    make test
+
+## Usage
 
 Start a VM:
 
