@@ -74,6 +74,7 @@ build_dist() {
             $RELEASE_DIR/obj.target/{tools/gyp/libv8_{base.$BUILD_ARCH,snapshot},third_party/icu/libicu{uc,i18n,data}}.a \
             -Wl,--end-group \
             -I $V8_DIR/include \
+            -lrt \
             -lpthread \
             -v
     fi
