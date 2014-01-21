@@ -1,5 +1,4 @@
-#!/bin/sh
-
+#!/bin/bash
 ROOT=$(pwd)
 
 LIB_DIR=$ROOT/libs
@@ -9,15 +8,19 @@ SOURCE_DIR=$ROOT/c_src
 
 ARCH=`getconf LONG_BIT`
 
-if [ $ARCH == 32 ]; then
+if [ "$ARCH" == "32" ]; then
     BUILD_ARCH="ia${ARCH}"
 else
     BUILD_ARCH="x${ARCH}"
 fi
 
-V8_SHA="49744859536225e7ac3b726e5b019dd99e127e6f"
+if [ "$(uname)" == "Darwin" ]; then
+    V8_FLAGS="werror=no"
+else
+    V8_FLAGS=""
+fi
 
-echo $BUILD_ARCH
+V8_SHA="49744859536225e7ac3b726e5b019dd99e127e6f"
 
 checkout() {
     mkdir -p "$LIB_DIR"
@@ -40,27 +43,40 @@ v8_deps() {
 build_v8() {
     pyver=`python -c 'import sys; print(sys.version_info[0])'`
     if [ "$pyver" != "2" ]; then
-        echo "Python 2 is required by GYP. Put it on your path and try again!"
+        echo "Python 2.6 or 2.7 is required by GYP."
         exit 1;
     fi
 	cd $V8_DIR
-    make $BUILD_ARCH.release 
+    make $BUILD_ARCH.release $V8_FLAGS
 }
 
 build_dist() {
     mkdir -p $DIST_DIR
-    cd $SOURCE_DIR
-    # TODO: move to other Makefile! :)
-	g++ -Iinclude erlang_v8.cc \
-        -o $DIST_DIR/erlang_v8 \
-        -Wl,--start-group \
-        $V8_DIR/out/$BUILD_ARCH.release/obj.target/{tools/gyp/libv8_{base.$BUILD_ARCH,snapshot},third_party/icu/libicu{uc,i18n,data}}.a \
-        -Wl,--end-group \
-        -I $V8_DIR/include \
-        -lrt \
-        -lv8 \
-        -lpthread \
-        -v 
+
+    RELEASE_DIR=$V8_DIR/out/$BUILD_ARCH.release
+    if [ "$(uname)" == "Darwin" ]; then
+        # OS X uses clang, and the static archives are located directly in the
+        # release directory. We also need to link libstdc++ as XCode defaults
+        # to libc++. This assumes latest OS X, XCode and default compiler
+        # (clang).
+        g++ -Iinclude $SOURCE_DIR/erlang_v8.cc \
+            -stdlib=libstdc++ \
+            -o $DIST_DIR/erlang_v8 \
+            $RELEASE_DIR/libv8_{base.$BUILD_ARCH,snapshot}.a \
+            $RELEASE_DIR/libicu{uc,i18n,data}.a \
+            -I $V8_DIR/include \
+            -lpthread \
+            -v
+    else
+        g++ -Iinclude $SOURCE_DIR/erlang_v8.cc \
+            -o $DIST_DIR/erlang_v8 \
+            -Wl,--start-group \
+            $RELEASE_DIR/obj.target/{tools/gyp/libv8_{base.$BUILD_ARCH,snapshot},third_party/icu/libicu{uc,i18n,data}}.a \
+            -Wl,--end-group \
+            -I $V8_DIR/include \
+            -lpthread \
+            -v
+    fi
 }
 
 clean() {
