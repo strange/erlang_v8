@@ -19,7 +19,7 @@
 -export([terminate/2]).
 -export([code_change/3]).
 
--define(EXECUTABLE, "priv/erlang_v8").
+-define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 2}, binary]).
 -define(DEFAULT_TIMEOUT, 5000).
 
@@ -116,7 +116,7 @@ kill_port(#state{monitor_pid = Pid, port = Port} = State) ->
 
 %% @doc Start port and port monitor.
 start_port(State) ->
-    Executable = filename:join(app_root(), ?EXECUTABLE),
+    Executable = filename:join(priv_dir(), ?EXECUTABLE),
     Port = open_port({spawn_executable, Executable}, ?SPAWN_OPTS),
     monitor_port(State#state{port = Port}).
 
@@ -169,7 +169,8 @@ eval_js(Port, Source, Timeout) ->
             {error, timeout}
     end.
 
-%% @doc Return the path to the application root (assuming directory structure
-%% is intact).
-app_root() ->
-    filename:join(filename:dirname(code:which(?MODULE)), "..").
+%% @doc Return the path to the application's priv dir (assuming directory
+%% structure is intact).
+priv_dir() ->
+    filename:join(filename:dirname(filename:dirname(code:which(?MODULE))),
+                  "priv").
