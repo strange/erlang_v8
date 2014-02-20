@@ -9,7 +9,7 @@
 -export([call/4]).
 
 start_vm() ->
-    erlang_v8_vm:start().
+    erlang_v8_vm:start_link().
 
 stop_vm(Pid) ->
     erlang_v8_vm:stop(Pid).
