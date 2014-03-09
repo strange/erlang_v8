@@ -50,8 +50,9 @@ c_src/erlang_v8.cc: $(V8_LIB)/libv8_base.$(BUILD_ARCH).a
 priv/erlang_v8: c_src/erlang_v8.cc
 	mkdir -p priv
 ifeq ($(OS),Darwin)
-	# We need to link libstdc++ as XCode defaults to libc++. This assumes
-	# latest OS X, XCode and default compiler (clang).
+	# We need to link libstdc++ as XCode defaults to libc++ and use a little
+	# different flags. The following assumes latest OS X, XCode and default
+	# compiler (clang).
 	g++ -Iinclude c_src/erlang_v8.cc \
 		-stdlib=libstdc++ \
 		-o priv/erlang_v8 \
