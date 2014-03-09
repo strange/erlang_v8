@@ -134,13 +134,10 @@ monitor_port(#state{port = Port} = State) ->
         MRef = erlang:monitor(process, Parent),
         receive 
             demonitor ->
-                lager:debug("Demonitoring pid."),
                 erlang:demonitor(MRef);
             kill ->
-                lager:debug("Killing port."),
                 os_kill(OSPid);
-            {'DOWN', _Ref, process, Parent, Reason} ->
-                lager:debug("Killing port (~p).", [Reason]),
+            {'DOWN', _Ref, process, Parent, _Reason} ->
                 os_kill(OSPid)
         end
     end),
@@ -165,7 +162,6 @@ eval_js(Port, Source, Timeout) ->
             %% TODO: we should probably special case here.
             {error, Error}
         after Timeout ->
-            lager:info("Timeout: ~p reached!", [Timeout]),
             {error, timeout}
     end.
 

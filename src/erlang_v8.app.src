@@ -7,7 +7,6 @@
   {applications, [
                   kernel,
                   stdlib,
-                  lager,
                   jiffy
                  ]},
   {mod, {erlang_v8_app, []}},
