@@ -10,16 +10,19 @@ V8_DIR := lib/v8-$(V8_REF)
 V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 V8_URL := https://github.com/v8/v8/archive/$(V8_REF).tar.gz
 
+TARGET_BIN := priv/erlang_v8
+TARGET_SRC := c_src/erlang_v8.cc
+
 .PHONY: all v8 clean distclean test
 
 all: v8 deps
 	rebar compile
 
-v8: priv/erlang_v8
+v8: $(TARGET_BIN)
 	@:
 
 clean:
-	rm -rf priv/erlang_v8
+	rm -rf $(TARGET_BIN)
 
 distclean: clean
 	rm -rf $(V8_DIR)
@@ -44,26 +47,26 @@ $(V8_LIB)/libv8_base.$(BUILD_ARCH).a: $(V8_DIR)/build/gyp
 	cp $(V8_LIB)/obj.target/third_party/icu/libicu{uc,i18n,data}.a \
 		$(V8_LIB) || :
 
-c_src/erlang_v8.cc: $(V8_LIB)/libv8_base.$(BUILD_ARCH).a
+$(TARGET_SRC): $(V8_LIB)/libv8_base.$(BUILD_ARCH).a
 	@:
 
-priv/erlang_v8: c_src/erlang_v8.cc
+$(TARGET_BIN): $(TARGET_SRC)
 	mkdir -p priv
 ifeq ($(OS),Darwin)
-	# We need to link libstdc++ as XCode defaults to libc++ and use a little
-	# different flags. The following assumes latest OS X, XCode and default
-	# compiler (clang).
-	g++ -Iinclude c_src/erlang_v8.cc \
+	# We need to link libstdc++ as XCode defaults to libc++, and use slightly
+	# different flags, on OS X. The following assumes Mavericks, XCode and
+	# default compiler (clang).
+	g++ -Iinclude $(TARGET_SRC) \
 		-stdlib=libstdc++ \
-		-o priv/erlang_v8 \
+		-o $(TARGET_BIN) \
 		$(V8_LIB)/libv8_{base.$(BUILD_ARCH),snapshot}.a \
 		$(V8_LIB)/libicu{uc,i18n,data}.a \
 		-I $(V8_DIR)/include \
 		-lpthread \
 		-v
 else
-	g++ -Iinclude c_src/erlang_v8.cc \
-		-o priv/erlang_v8 \
+	g++ -Iinclude $(TARGET_SRC) \
+		-o $(TARGET_BIN) \
 		-Wl,--start-group \
 		$(V8_LIB)/libv8_{base.$(BUILD_ARCH),snapshot}.a \
 		$(V8_LIB)/libicu{uc,i18n,data}.a \
