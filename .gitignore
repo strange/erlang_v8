@@ -5,5 +5,5 @@ ebin/*
 .eunit/*
 erl_crash.dump
 /log
-/libs
+/lib
 /priv
