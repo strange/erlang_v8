@@ -1,3 +1,13 @@
+PROJECT = erlang_v8
+
+DEPS = jiffy
+dep_jiffy = pkg://jiffy master
+
+TEST_DEPS = ct_helper
+dep_ct_helper = https://github.com/extend/ct_helper.git master
+
+CT_SUITES = port
+
 ARCH := $(shell getconf LONG_BIT)
 OS := $(shell uname)
 
@@ -13,22 +23,23 @@ V8_URL := https://github.com/v8/v8/archive/$(V8_REF).tar.gz
 TARGET_BIN := priv/erlang_v8
 TARGET_SRC := c_src/erlang_v8.cc
 
-.PHONY: all v8 clean distclean test
+include erlang.mk
 
-all: deps
-	rebar compile
+.PHONY: v8 local-clean local-clean-all
 
-v8: $(TARGET_BIN)
-	@:
+app: v8
 
-clean:
+clean: local-clean
+
+clean-all: local-clean-all
+
+local-clean:
 	rm -rf $(TARGET_BIN)
 
-distclean: clean
+local-clean-all:: 
 	rm -rf $(V8_DIR)
 
-test:
-	rebar eunit skip_deps=true
+v8: $(TARGET_BIN)
 
 lib:
 	mkdir -p lib
