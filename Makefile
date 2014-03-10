@@ -2,7 +2,7 @@ ARCH := $(shell getconf LONG_BIT)
 OS := $(shell uname)
 
 BUILD_ARCH_32 := ia32
-BUILD_ARCH_64 := x86
+BUILD_ARCH_64 := x64
 BUILD_ARCH := $(BUILD_ARCH_$(ARCH))
 
 V8_REF := 49744859536225e7ac3b726e5b019dd99e127e6f
@@ -15,7 +15,7 @@ TARGET_SRC := c_src/erlang_v8.cc
 
 .PHONY: all v8 clean distclean test
 
-all: v8 deps
+all: deps
 	rebar compile
 
 v8: $(TARGET_BIN)
@@ -37,21 +37,22 @@ $(V8_DIR): lib
 	curl -L $(V8_URL) | tar xvz -C lib
 
 $(V8_DIR)/build/gyp: $(V8_DIR)
-	cd $(V8_DIR) && make dependencies
-	@touch $(V8_DIR)/build/gyp
+	@cd $(V8_DIR) && make dependencies
+	@touch $@
 
 $(V8_LIB)/libv8_base.$(BUILD_ARCH).a: $(V8_DIR)/build/gyp
-	cd $(V8_DIR) && make $(BUILD_ARCH).release werror=no
-	cp $(V8_LIB)/obj.target/tools/gyp/libv8_{base.$(BUILD_ARCH),snapshot}.a \
-		$(V8_LIB) || :
-	cp $(V8_LIB)/obj.target/third_party/icu/libicu{uc,i18n,data}.a \
-		$(V8_LIB) || :
+	@cd $(V8_DIR) && make $(BUILD_ARCH).release werror=no
+	@touch $@
+	@cp $(V8_LIB)/obj.target/tools/gyp/libv8_{base.$(BUILD_ARCH),snapshot}.a \
+		$(V8_LIB) 2> /dev/null || :
+	@cp $(V8_LIB)/obj.target/third_party/icu/libicu{uc,i18n,data}.a \
+		$(V8_LIB) 2> /dev/null || :
 
 $(TARGET_SRC): $(V8_LIB)/libv8_base.$(BUILD_ARCH).a
 	@:
 
 $(TARGET_BIN): $(TARGET_SRC)
-	mkdir -p priv
+	@mkdir -p priv
 ifeq ($(OS),Darwin)
 	# We need to link libstdc++ as XCode defaults to libc++, and use slightly
 	# different flags, on OS X. The following assumes Mavericks, XCode and
