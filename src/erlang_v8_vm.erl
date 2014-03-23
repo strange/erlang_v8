@@ -6,6 +6,7 @@
 -export([start_link/0]).
 -export([stop/1]).
 -export([reset/1]).
+-export([restart/1]).
 
 -export([eval/2]).
 -export([eval/3]).
@@ -22,6 +23,9 @@
 -define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 2}, binary]).
 -define(DEFAULT_TIMEOUT, 5000).
+
+-define(OP_EVAL, 0).
+-define(OP_RESET, 2).
 
 -record(state, {
         port,
@@ -51,6 +55,9 @@ call(Pid, FunctionName, Args, Timeout) ->
 reset(Pid) ->
     gen_server:call(Pid, reset).
 
+restart(Pid) ->
+    gen_server:call(Pid, restart).
+
 stop(Pid) ->
     gen_server:call(Pid, stop).
 
@@ -78,7 +85,11 @@ handle_call({eval, Source, Timeout}, _From, #state{port = Port} = State) ->
             {reply, {error, Reason}, State}
     end;
 
-handle_call(reset, _From, State) ->
+handle_call(reset, _From, #state{port = Port} = State) ->
+    Port ! {self(), {command, <<?OP_RESET:8>>}},
+    {reply, ok, State};
+
+handle_call(restart, _From, State) ->
     {reply, ok, start_port(close_port(State))};
 
 handle_call(stop, _From, State) ->
@@ -149,7 +160,7 @@ os_kill(OSPid) ->
 
 %% @doc Evaluate source on port
 eval_js(Port, Source, Timeout) ->
-    Port ! {self(), {command, <<0:8, Source/binary>>}},
+    Port ! {self(), {command, <<?OP_EVAL:8, Source/binary>>}},
     receive
         {Port, {data, <<_:8, "undefined">>}} ->
             {ok, undefined};

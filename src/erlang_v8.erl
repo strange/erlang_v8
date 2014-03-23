@@ -3,6 +3,9 @@
 -export([start_vm/0]).
 -export([stop_vm/1]).
 
+-export([reset_vm/1]).
+-export([restart_vm/1]).
+
 -export([eval/2]).
 -export([eval/3]).
 -export([call/3]).
@@ -13,6 +16,12 @@ start_vm() ->
 
 stop_vm(Pid) ->
     erlang_v8_vm:stop(Pid).
+
+reset_vm(Pid) ->
+    erlang_v8_vm:reset(Pid).
+
+restart_vm(Pid) ->
+    erlang_v8_vm:restart(Pid).
 
 eval(Pid, Source) ->
     erlang_v8_vm:eval(Pid, Source).

@@ -134,26 +134,48 @@ void eval(Isolate* isolate, string input) {
     }
 }
 
-int main(int argc, char* argv[]) {
-    ios_base::sync_with_stdio(false);
+Handle<ObjectTemplate> create_global(Isolate* isolate) {
+    Handle<ObjectTemplate> global =  ObjectTemplate::New(isolate);
+    global->Set(String::NewFromUtf8(isolate, "erlang_v8"),
+                String::NewFromUtf8(isolate, "yes"));
+    return global;
+}
 
+Handle<Context> create_context(Isolate* isolate, Handle<ObjectTemplate> global) {
+    return Context::New(isolate, NULL, create_global(isolate));
+}
+
+bool command_loop() {
     Isolate* isolate = Isolate::GetCurrent();
+
     HandleScope handle_scope(isolate);
-    Handle<Context> context = Context::New(isolate);
+
+    Handle<ObjectTemplate> global = create_global(isolate);
+    Handle<Context> context = create_context(isolate, global);
+
     Context::Scope context_scope(context);
 
+    bool reset = false;
     Packet packet;
-    while (next_packet(&packet)) {
+    while (!reset && next_packet(&packet)) {
         switch(packet.op) {
             case EVAL_R:
                 eval(isolate, packet.data);
                 break;
+            case RESET_VM_R:
+                reset = true;
+                break;
         }
-
         packet = (const struct Packet){ 0 };
     }
+    V8::ContextDisposedNotification();
+    return reset;
+}
 
-    V8::TerminateExecution(isolate);
+int main(int argc, char* argv[]) {
+    ios_base::sync_with_stdio(false);
+
+    while (command_loop());
 
     return 0;
 }

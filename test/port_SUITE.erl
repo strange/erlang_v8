@@ -13,6 +13,7 @@
 -export([errors/1]).
 -export([timeout/1]).
 -export([reset/1]).
+-export([restart/1]).
 
 %% Callbacks
 
@@ -24,7 +25,8 @@ all() ->
         nested_return_type,
         errors,
         timeout,
-        reset
+        reset,
+        restart
     ].
 
 init_per_suite(Config) ->
@@ -122,11 +124,50 @@ timeout(_Config) ->
 reset(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+    erlang_v8:reset_vm(P),
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+
+    {ok, <<"no">>} = erlang_v8:eval(P, <<"erlang_v8 = 'no';">>),
+    erlang_v8:reset_vm(P),
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+
+    {ok, <<"test">>} = erlang_v8:eval(P, <<"String.imposter = 'test';">>),
+    erlang_v8:reset_vm(P),
+    {ok, undefined} = erlang_v8:eval(P, <<"String.imposter">>),
+
     {ok, undefined} =
         erlang_v8:eval(P, <<"function sum(a, b) { return a + b }">>),
     {ok, 2} = erlang_v8:call(P, <<"sum">>, [1, 1]),
 
-    erlang_v8_vm:reset(P),
+    erlang_v8:reset_vm(P),
+
+    {error, <<"ReferenceError: sum", _/binary>>} =
+        erlang_v8:call(P, <<"sum">>, [1, 1]),
+
+    erlang_v8:stop_vm(P),
+    ok.
+
+restart(_Config) ->
+    {ok, P} = erlang_v8:start_vm(),
+
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+    erlang_v8:restart_vm(P),
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+
+    {ok, <<"no">>} = erlang_v8:eval(P, <<"erlang_v8 = 'no';">>),
+    erlang_v8:restart_vm(P),
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+
+    {ok, <<"test">>} = erlang_v8:eval(P, <<"String.imposter = 'test';">>),
+    erlang_v8:restart_vm(P),
+    {ok, undefined} = erlang_v8:eval(P, <<"String.imposter">>),
+
+    {ok, undefined} =
+        erlang_v8:eval(P, <<"function sum(a, b) { return a + b }">>),
+    {ok, 2} = erlang_v8:call(P, <<"sum">>, [1, 1]),
+
+    erlang_v8:restart_vm(P),
 
     {error, <<"ReferenceError: sum", _/binary>>} =
         erlang_v8:call(P, <<"sum">>, [1, 1]),
