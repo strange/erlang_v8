@@ -40,7 +40,7 @@ Define a function:
     {ok, undefined} =
         erlang_v8:eval(VM, <<"function sum(a, b) { return a + b }">>).
 
-Run the function: 
+Call the function: 
 
     {ok, 2} = erlang_v8:call(VM, <<"sum">>, [1, 1]).
 
@@ -51,6 +51,23 @@ You can reset the VM:
         erlang_v8:call(VM, <<"sum">>, [1, 1]).
 
 Stop the VM:
+
+    ok = erlang_v8:stop_vm(VM).
+
+VMs can be initialized with code that is automatically reloaded when the VM is
+reset:
+
+    {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1;">>}]).
+
+    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
+
+    ok = erlang_v8:reset_vm(VM).
+    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
+
+    {ok, 2} = erlang_v8:eval(VM, <<"x = 2;">>).
+    {ok, 2} = erlang_v8:eval(VM, <<"x;">>).
+    ok = erlang_v8:reset_vm(VM).
+    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
 
     ok = erlang_v8:stop_vm(VM).
 

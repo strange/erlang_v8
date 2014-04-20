@@ -1,6 +1,7 @@
 -module(erlang_v8).
 
 -export([start_vm/0]).
+-export([start_vm/1]).
 -export([stop_vm/1]).
 
 -export([reset_vm/1]).
@@ -12,7 +13,10 @@
 -export([call/4]).
 
 start_vm() ->
-    erlang_v8_vm:start_link().
+    start_vm([]).
+
+start_vm(Opts) ->
+    erlang_v8_vm:start_link(Opts).
 
 stop_vm(Pid) ->
     erlang_v8_vm:stop(Pid).

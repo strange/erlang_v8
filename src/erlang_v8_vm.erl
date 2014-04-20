@@ -3,10 +3,11 @@
 -behaviour(gen_server).
 
 -export([start/0]).
--export([start_link/0]).
+-export([start_link/1]).
 -export([stop/1]).
 -export([reset/1]).
 -export([restart/1]).
+-export([set/1]).
 
 -export([eval/2]).
 -export([eval/3]).
@@ -26,16 +27,18 @@
 
 -define(OP_EVAL, 0).
 -define(OP_RESET, 2).
+-define(OP_SET, 3).
 
 -record(state, {
+        initial_source = [],
         port,
         monitor_pid
     }).
 
 %% External API
 
-start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+start_link(Opts) ->
+    gen_server:start_link(?MODULE, [Opts], []).
 
 start() ->
     gen_server:start(?MODULE, [], []).
@@ -52,6 +55,9 @@ call(Pid, FunctionName, Args) ->
 call(Pid, FunctionName, Args, Timeout) ->
     gen_server:call(Pid, {call, FunctionName, Args, Timeout}, Timeout + 1000).
 
+set(Pid) ->
+    gen_server:call(Pid, set).
+
 reset(Pid) ->
     gen_server:call(Pid, reset).
 
@@ -59,12 +65,14 @@ restart(Pid) ->
     gen_server:call(Pid, restart).
 
 stop(Pid) ->
-    gen_server:call(Pid, stop).
+    closed = gen_server:call(Pid, stop),
+    ok.
 
 %% Callbacks
 
-init([]) ->
-    State = start_port(#state{}),
+init([Opts]) ->
+    InitialSource = [S || {source, S} <- Opts],
+    State = start_port(#state{initial_source = InitialSource}),
     {ok, State}.
 
 handle_call({call, FunctionName, Args, Timeout}, From, State) ->
@@ -84,6 +92,10 @@ handle_call({eval, Source, Timeout}, _From, #state{port = Port} = State) ->
         {error, Reason} ->
             {reply, {error, Reason}, State}
     end;
+
+handle_call(set, _From, #state{port = Port} = State) ->
+    Port ! {self(), {command, <<?OP_SET:8>>}},
+    {reply, ok, State};
 
 handle_call(reset, _From, #state{port = Port} = State) ->
     Port ! {self(), {command, <<?OP_RESET:8>>}},
@@ -126,9 +138,10 @@ kill_port(#state{monitor_pid = Pid, port = Port} = State) ->
     State#state{monitor_pid = undefined, port = undefined}.
 
 %% @doc Start port and port monitor.
-start_port(State) ->
+start_port(#state{initial_source = Source} = State) ->
     Executable = filename:join(priv_dir(), ?EXECUTABLE),
-    Port = open_port({spawn_executable, Executable}, ?SPAWN_OPTS),
+    Opts = [{args, Source}|?SPAWN_OPTS],
+    Port = open_port({spawn_executable, Executable}, Opts),
     monitor_port(State#state{port = Port}).
 
 %% @doc Kill active port monitor before starting a new process.

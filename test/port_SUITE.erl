@@ -14,6 +14,7 @@
 -export([timeout/1]).
 -export([reset/1]).
 -export([restart/1]).
+-export([opts/1]).
 
 %% Callbacks
 
@@ -26,7 +27,8 @@ all() ->
         errors,
         timeout,
         reset,
-        restart
+        restart,
+        opts
     ].
 
 init_per_suite(Config) ->
@@ -122,7 +124,7 @@ timeout(_Config) ->
     ok.
 
 reset(_Config) ->
-    {ok, P} = erlang_v8:start_vm(),
+    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
 
     {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
     erlang_v8:reset_vm(P),
@@ -149,7 +151,7 @@ reset(_Config) ->
     ok.
 
 restart(_Config) ->
-    {ok, P} = erlang_v8:start_vm(),
+    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
 
     {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
     erlang_v8:restart_vm(P),
@@ -173,4 +175,15 @@ restart(_Config) ->
         erlang_v8:call(P, <<"sum">>, [1, 1]),
 
     erlang_v8:stop_vm(P),
+    ok.
+
+opts(_Config) ->
+    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+    erlang_v8:reset_vm(P),
+    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
+    {ok, 3} = erlang_v8:eval(P, <<"lol = 3;">>),
+    {ok, 3} = erlang_v8:eval(P, <<"lol">>),
+    erlang_v8:reset_vm(P),
+    {error, <<"ReferenceError: lol", _/binary>>} = erlang_v8:eval(P, <<"lol">>),
     ok.
