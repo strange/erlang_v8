@@ -145,10 +145,10 @@ bool command_loop(int scriptc, char* scriptv[]) {
     
     // Initializing scripts for every new (reset) request. This is a temporary
     // solution.
-    for (int i = 0; i < scriptc; i++) {
+    for (int i = 1; i < scriptc; i++) {
         // we need to catch errors here and inform the user.
-        const char* s = scriptv[i];
-        Handle<String> source = String::NewFromUtf8(isolate, s);
+        debug(scriptv[i]);
+        Handle<String> source = String::NewFromUtf8(isolate, scriptv[i]);
         Handle<Script> script = Script::Compile(source);
         Handle<Value> result = script->Run();
     }
