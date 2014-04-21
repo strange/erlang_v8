@@ -1,3 +1,4 @@
+SHELL = /bin/bash
 PROJECT = erlang_v8
 
 DEPS = jiffy
@@ -54,10 +55,8 @@ $(V8_DIR)/build/gyp: $(V8_DIR)
 $(V8_LIB)/libv8_base.$(BUILD_ARCH).a: $(V8_DIR)/build/gyp
 	@cd $(V8_DIR) && make $(BUILD_ARCH).release werror=no
 	@touch $@
-	@cp $(V8_LIB)/obj.target/tools/gyp/libv8_{base.$(BUILD_ARCH),snapshot}.a \
-		$(V8_LIB) 2> /dev/null || :
-	@cp $(V8_LIB)/obj.target/third_party/icu/libicu{uc,i18n,data}.a \
-		$(V8_LIB) 2> /dev/null || :
+	@cp $(V8_LIB)/obj.target/tools/gyp/*.a $(V8_LIB) 2> /dev/null || :
+	@cp $(V8_LIB)/obj.target/third_party/icu/*.a $(V8_LIB) 2> /dev/null || :
 
 $(TARGET_SRC): $(V8_LIB)/libv8_base.$(BUILD_ARCH).a
 	@:
