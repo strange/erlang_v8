@@ -6,13 +6,23 @@ This is just an experiment to see if embedding v8 in an actual OS process is
 more predictable than using a port driver or NIF. I will give the project
 proper attention if the experiment works out.
 
-The most notable feature is that you can eval things like "while (true) {}"
-and have the v8 VM actually terminate when it times out. I'm also planning
-two-way communication, loading scripts etc.
+The most notable features: 
+
+- You can `eval/3` things like "while (true) {}" with a timeout and have the
+  v8 VM actually terminate when it times out (the OS process is killed and
+  restarted).
+- The context of the VM can then be reset (the current implementation is
+  pretty naive; I'm working on a more elegant solution). This is useful when
+  you want multiple parties to share the same VM(s).
+- A VM can be initialized with pre-defined source that's loaded into the OS
+  process and automatically evaluated when the VM is reset or restarted.
+
+I'm also planning two-way communication (i.e. passing messages back to the
+controlling process from JS) and a few other things.
 
 ## Building
 
-Subversion, and Python 2.6-2.7 (by GYP) are required to build v8.
+Subversion, and Python 2.6-2.7 (required by GYP) are required to build v8.
 
 Build using make:
 
@@ -55,7 +65,7 @@ Stop the VM:
     ok = erlang_v8:stop_vm(VM).
 
 VMs can be initialized with code that is automatically reloaded when the VM is
-reset:
+reset or restarted:
 
     {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1;">>}]).
 
@@ -71,9 +81,17 @@ reset:
 
     ok = erlang_v8:stop_vm(VM).
 
+## Pooling
+
+You might want to use some kind of pooling mechanism as the VMs are real OS
+processes. I've had much success using
+[devinus/poolboy](https://github.com/devinus/poolboy) for this purpose in the
+past (I considered including the application, but decided against it as it
+might not always be desireable to have a pool. Besides, poolboy is easy to set
+up).
+
 ## TODO
 
 Lots of testing, improve the communication protocol, clean up api, experiment
-with calling Erlang from JS, load initial context from args, supervisor
-strategy, experiment with different ways of passing args to calls (maybe via
-the communication protocol) etc.
+with calling Erlang from JS, supervisor strategy, experiment with different
+ways of passing args to calls (maybe via the communication protocol) etc.
