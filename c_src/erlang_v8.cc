@@ -42,6 +42,7 @@ void resp(Isolate* isolate, Handle<Value> response, int op) {
     cout << (char)((len >> 8) & 0xff) << (char)(len & 0xff);
     cout << (char)op;
     cout << *utf8;
+    cout.flush();
 }
 
 void ok(Isolate* isolate, Handle<Value> response) {
