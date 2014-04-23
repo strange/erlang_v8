@@ -147,7 +147,6 @@ bool command_loop(int scriptc, char* scriptv[]) {
     // solution.
     for (int i = 1; i < scriptc; i++) {
         // we need to catch errors here and inform the user.
-        debug(scriptv[i]);
         Handle<String> source = String::NewFromUtf8(isolate, scriptv[i]);
         Handle<Script> script = Script::Compile(source);
         Handle<Value> result = script->Run();
