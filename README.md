@@ -81,6 +81,10 @@ reset or restarted:
 
     ok = erlang_v8:stop_vm(VM).
 
+You can also initialize the VMs using paths to source files:
+
+    {ok, VM} = erlang_v8:start_vm([{file, "a.js"}, {file, "b.js"}]).
+
 ## Pooling
 
 You might want to use some kind of pooling mechanism as the VMs are real OS

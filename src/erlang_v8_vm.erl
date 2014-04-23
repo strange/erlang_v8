@@ -71,8 +71,7 @@ stop(Pid) ->
 %% Callbacks
 
 init([Opts]) ->
-    InitialSource = [S || {source, S} <- Opts],
-    State = start_port(#state{initial_source = InitialSource}),
+    State = start_port(parse_opts(Opts)),
     {ok, State}.
 
 handle_call({call, FunctionName, Args, Timeout}, From, State) ->
@@ -194,3 +193,22 @@ eval_js(Port, Source, Timeout) ->
 priv_dir() ->
     filename:join(filename:dirname(filename:dirname(code:which(?MODULE))),
                   "priv").
+
+%% @doc Parse proplists/opts and populate a state record.
+parse_opts(Opts) ->
+    parse_opts(Opts, #state{initial_source = []}).
+
+parse_opts([], State) ->
+    State;
+
+parse_opts([{source, S}|T], #state{initial_source = InitialSource} = State) ->
+    parse_opts(T, State#state{initial_source = [S|InitialSource]});
+
+parse_opts([{file, F}|T], #state{initial_source = InitialSource} = State) ->
+    %% Files should probably be read in the OS process instead to prevent
+    %% keeping multiple copies of the JS source code in memory.
+    {ok, S} = file:read_file(F),
+    parse_opts(T, State#state{initial_source = [S|InitialSource]});
+
+parse_opts([_|T], State) ->
+    parse_opts(T, State).

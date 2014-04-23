@@ -16,6 +16,7 @@
 -export([restart/1]).
 -export([single_source/1]).
 -export([multi_source/1]).
+-export([file_source/1]).
 -export([multi/1]).
 
 %% Callbacks
@@ -32,6 +33,7 @@ all() ->
         restart,
         single_source,
         multi_source,
+        file_source,
         multi
     ].
 
@@ -200,6 +202,16 @@ multi_source(_Config) ->
     erlang_v8:restart_vm(P),
     {ok, 1} = erlang_v8:eval(P, <<"x;">>),
     {ok, 2} = erlang_v8:eval(P, <<"y;">>),
+    erlang_v8:stop_vm(P),
+    ok.
+
+file_source(_Config) ->
+    Directory = filename:dirname(code:which(?MODULE)),
+    Path = filename:join(Directory, "js/variables.js"),
+    {ok, P} = erlang_v8:start_vm([{file, Path}]),
+    {ok, 3} = erlang_v8:eval(P, <<"z;">>),
+    erlang_v8:reset_vm(P),
+    {ok, 3} = erlang_v8:eval(P, <<"z;">>),
     erlang_v8:stop_vm(P),
     ok.
 
