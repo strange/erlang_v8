@@ -1,8 +1,8 @@
 SHELL = /bin/bash
 PROJECT = erlang_v8
 
-DEPS = jiffy
-dep_jiffy = pkg://jiffy master
+DEPS = jsx
+dep_jsx = pkg://jsx master
 
 TEST_DEPS = ct_helper
 dep_ct_helper = https://github.com/extend/ct_helper.git master

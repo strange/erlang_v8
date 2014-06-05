@@ -17,7 +17,8 @@
 -export([single_source/1]).
 -export([multi_source/1]).
 -export([file_source/1]).
--export([multi/1]).
+-export([multiple_eval_with_reset/1]).
+-export([multiple_vms/1]).
 
 %% Callbacks
 
@@ -34,11 +35,12 @@ all() ->
         single_source,
         multi_source,
         file_source,
-        multi
+        multiple_eval_with_reset,
+        multiple_vms
     ].
 
 init_per_suite(Config) ->
-    application:start(jiffy),
+    application:start(jsx),
     application:start(erlang_v8),
     Config.
 
@@ -71,7 +73,7 @@ call(_Config) ->
     {ok, undefined} =
         erlang_v8:eval(P, <<"function get(o) { return o.a; }">>),
     {ok, undefined} = erlang_v8:call(P, <<"get">>, [2, 2]),
-    {ok, 1} = erlang_v8:call(P, <<"get">>, [{[{a, 1}]}]),
+    {ok, 1} = erlang_v8:call(P, <<"get">>, [[{a, 1}]]),
 
     erlang_v8:stop_vm(P),
     ok.
@@ -80,7 +82,7 @@ return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
     {ok, 1} = erlang_v8:eval(P, <<"1">>),
-    {ok, {[{<<"a">>, 1}]}} = erlang_v8:eval(P, <<"var x = { a: 1 }; x">>),
+    {ok, [{<<"a">>, 1}]} = erlang_v8:eval(P, <<"var x = { a: 1 }; x">>),
     {ok, [1]} = erlang_v8:eval(P, <<"[1]">>),
     {ok, true} = erlang_v8:eval(P, <<"true">>),
     {ok, null} = erlang_v8:eval(P, <<"null">>),
@@ -92,11 +94,11 @@ return_type(_Config) ->
 nested_return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {ok, {[
+    {ok, [
            {<<"val">>, 1},
            {<<"list">>, [1, 2, 3]},
-           {<<"obj">>, {[{<<"val">>, 1}]}}
-    ]}} = erlang_v8:eval(P, <<"
+           {<<"obj">>, [{<<"val">>, 1}]}
+    ]} = erlang_v8:eval(P, <<"
     var x = {
         val: 1,
         list: [1, 2, 3],
@@ -215,7 +217,7 @@ file_source(_Config) ->
     erlang_v8:stop_vm(P),
     ok.
 
-multi(_Config) ->
+multiple_eval_with_reset(_Config) ->
     {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
     [begin
          {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
@@ -223,6 +225,17 @@ multi(_Config) ->
          {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
          {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
          erlang_v8:reset_vm(P)
-     end || _ <- lists:seq(0, 5000)],
+     end || _ <- lists:seq(0, 1)],
     erlang_v8:stop_vm(P),
+    ok.
+
+multiple_vms(_Config) ->
+    {ok, VM1} = erlang_v8:start_vm(),
+    {ok, VM2} = erlang_v8:start_vm(),
+    {ok, undefined} = erlang_v8:eval(VM1, <<"var x = 1;">>),
+    {ok, undefined} = erlang_v8:eval(VM2, <<"var x = 2;">>),
+    {ok, 1} = erlang_v8:eval(VM1, <<"x;">>),
+    {ok, 2} = erlang_v8:eval(VM2, <<"x;">>),
+    ok = erlang_v8:stop_vm(VM1),
+    ok = erlang_v8:stop_vm(VM2),
     ok.

@@ -77,7 +77,8 @@ init([Opts]) ->
 handle_call({call, FunctionName, Args, Timeout}, From, State) ->
     %% TODO: call should be a special op and decoding should be done in 
     %% the cc wrapper.
-    SerializedArgs = jiffy:encode(Args),
+    io:format("************************************* ARGS: ~p", [Args]),
+    SerializedArgs = jsx:encode(Args),
     Source = <<FunctionName/binary, ".apply(null, JSON.parse('",
                SerializedArgs/binary ,"'));">>,
     handle_call({eval, Source, Timeout}, From, State);
@@ -177,9 +178,9 @@ eval_js(Port, Source, Timeout) ->
         {Port, {data, <<_:8, "undefined">>}} ->
             {ok, undefined};
         {Port, {data, <<0:8, Response/binary>>}} ->
-            {ok, jiffy:decode(Response)};
+            {ok, jsx:decode(Response)};
         {Port, {data, <<1:8, Response/binary>>}} ->
-            {[{<<"error">>, Reason}]} = jiffy:decode(Response),
+            [{<<"error">>, Reason}] = jsx:decode(Response),
             {error, Reason};
         {Port, Error} ->
             %% TODO: we should probably special case here.

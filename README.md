@@ -97,5 +97,5 @@ up).
 ## TODO
 
 Lots of testing, improve the communication protocol, clean up api, experiment
-with calling Erlang from JS, supervisor strategy, experiment with different
-ways of passing args to calls (maybe via the communication protocol) etc.
+with calling Erlang from JS, experiment with different ways of passing args to
+calls (maybe via the communication protocol) etc.
