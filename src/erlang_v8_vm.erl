@@ -77,7 +77,6 @@ init([Opts]) ->
 handle_call({call, FunctionName, Args, Timeout}, From, State) ->
     %% TODO: call should be a special op and decoding should be done in 
     %% the cc wrapper.
-    io:format("************************************* ARGS: ~p", [Args]),
     SerializedArgs = jsx:encode(Args),
     Source = <<FunctionName/binary, ".apply(null, JSON.parse('",
                SerializedArgs/binary ,"'));">>,
