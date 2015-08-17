@@ -8,3 +8,7 @@ erl_crash.dump
 /logs
 /lib
 /priv
+
+/c_src/test
+/c_src/env.mk
+/.erlang.mk
