@@ -20,6 +20,7 @@
 -export([multiple_eval_with_reset/1]).
 -export([multiple_vms/1]).
 -export([big_input/1]).
+-export([escaped_control_characters/1]).
 
 %% Callbacks
 
@@ -38,7 +39,8 @@ all() ->
         file_source,
         multiple_eval_with_reset,
         multiple_vms,
-        big_input
+        big_input,
+        escaped_control_characters
     ].
 
 init_per_suite(Config) ->
@@ -248,7 +250,18 @@ big_input(_Config) ->
         return arg;
     }">>),
     Bytes = random_bytes(300000),
+
     {error, invalid_source_size} = erlang_v8:call(VM, <<"call">>, [Bytes]),
+    ok = erlang_v8:stop_vm(VM),
+    ok.
+
+escaped_control_characters(_Config) ->
+    {ok, VM} = erlang_v8:start_vm(),
+    {ok, undefined} = erlang_v8:eval(VM, <<"function call(arg) {
+        return arg;
+    }">>),
+    Bytes = <<"\ntestar\nfestar\n">>,
+    {ok, <<"\ntestar\nfestar\n">>} = erlang_v8:call(VM, <<"call">>, [Bytes]),
     ok = erlang_v8:stop_vm(VM),
     ok.
 

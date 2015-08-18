@@ -78,7 +78,7 @@ init([Opts]) ->
 handle_call({call, FunctionName, Args, Timeout}, From, State) ->
     %% TODO: call should be a special op and decoding should be done in 
     %% the cc wrapper.
-    SerializedArgs = jsx:encode(Args),
+    SerializedArgs = jsx:encode(escape_args(Args)),
     Source = <<FunctionName/binary, ".apply(null, JSON.parse('",
                SerializedArgs/binary ,"'));">>,
     handle_call({eval, Source, Timeout}, From, State);
@@ -214,3 +214,22 @@ parse_opt({file, F}, #state{initial_source = InitialSource} = State) ->
 
 %% @doc Ignore unknown options.
 parse_opt(_, State) -> State.
+
+valid_utf8(B) ->
+    case unicode:characters_to_list(B) of
+        {_Type, Data, _Rest} -> Data;
+        _ -> B
+    end.
+
+escape_args(Args) ->
+    lists:map(fun(Arg) when is_binary(Arg) -> escape_binary(valid_utf8(Arg));
+                 (Arg) -> Arg
+    end, Args).
+
+escape_binary(B) ->
+    escape_binary(B, [{<<"\n">>, <<"\\n">>}, {<<"\r">>, <<"\\r">>},
+                      {<<"\b">>, <<"\\b">>}, {<<"\t">>, <<"\\t">>}]).
+escape_binary(B, []) ->
+    B;
+escape_binary(B, [{X, Y}|T]) ->
+    escape_binary(binary:replace(B, X, Y, [global]), T).
