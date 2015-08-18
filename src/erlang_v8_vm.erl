@@ -24,6 +24,7 @@
 -define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 2}, binary]).
 -define(DEFAULT_TIMEOUT, 5000).
+-define(MAX_SOURCE_SIZE, 65535).
 
 -define(OP_EVAL, 0).
 -define(OP_RESET, 2).
@@ -81,6 +82,10 @@ handle_call({call, FunctionName, Args, Timeout}, From, State) ->
     Source = <<FunctionName/binary, ".apply(null, JSON.parse('",
                SerializedArgs/binary ,"'));">>,
     handle_call({eval, Source, Timeout}, From, State);
+
+handle_call({eval, Source, _Timeout}, _From, State)
+  when size(Source) > ?MAX_SOURCE_SIZE ->
+    {reply, {error, invalid_source_size}, State};
 
 handle_call({eval, Source, Timeout}, _From, #state{port = Port} = State) ->
     case eval_js(Port, Source, Timeout) of

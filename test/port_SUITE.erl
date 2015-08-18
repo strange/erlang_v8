@@ -19,6 +19,7 @@
 -export([file_source/1]).
 -export([multiple_eval_with_reset/1]).
 -export([multiple_vms/1]).
+-export([big_input/1]).
 
 %% Callbacks
 
@@ -36,7 +37,8 @@ all() ->
         multi_source,
         file_source,
         multiple_eval_with_reset,
-        multiple_vms
+        multiple_vms,
+        big_input
     ].
 
 init_per_suite(Config) ->
@@ -239,3 +241,18 @@ multiple_vms(_Config) ->
     ok = erlang_v8:stop_vm(VM1),
     ok = erlang_v8:stop_vm(VM2),
     ok.
+
+big_input(_Config) ->
+    {ok, VM} = erlang_v8:start_vm(),
+    {ok, undefined} = erlang_v8:eval(VM, <<"function call(arg) {
+        return arg;
+    }">>),
+    Bytes = random_bytes(300000),
+    {error, invalid_source_size} = erlang_v8:call(VM, <<"call">>, [Bytes]),
+    ok = erlang_v8:stop_vm(VM),
+    ok.
+
+%% Helpers
+
+random_bytes(N) ->
+    list_to_binary([random:uniform(26) + 96 || _ <- lists:seq(0, N - 1)]).
