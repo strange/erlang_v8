@@ -131,8 +131,7 @@ errors(_Config) ->
 
     {error, <<"exception">>} = erlang_v8:eval(P, <<"throw 'exception';">>),
 
-    %% FIXME
-    {error, <<"TypeError: undefined is not", _/binary>>} =
+    {error, <<"ReferenceError: i_do_not_exist is not defined", _/binary>>} =
         erlang_v8:call(P, <<"i_do_not_exist">>, []),
 
     erlang_v8:stop_vm(P),
@@ -167,9 +166,7 @@ reset(_Config) ->
 
     erlang_v8:reset_vm(P),
 
-    %% {error, <<"ReferenceError: sum", _/binary>>} =
-    %%     erlang_v8:call(P, <<"sum">>, [1, 1]),
-    {error, <<"TypeError: undefined is not ", _/binary>>} =
+    {error, <<"ReferenceError: sum is not defined", _/binary>>} =
         erlang_v8:call(P, <<"sum">>, [1, 1]),
 
     erlang_v8:stop_vm(P),
@@ -196,7 +193,7 @@ restart(_Config) ->
 
     erlang_v8:restart_vm(P),
 
-    {error, <<"TypeError: undefined is not ", _/binary>>} =
+    {error, <<"ReferenceError: sum is not defined", _/binary>>} =
         erlang_v8:call(P, <<"sum">>, [1, 1]),
 
     erlang_v8:stop_vm(P),

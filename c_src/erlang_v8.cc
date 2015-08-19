@@ -157,23 +157,41 @@ void call(Isolate* isolate, string input) {
     int len = args->Length();
     Handle<Value> argz[len];
 
-
     // debug(static_cast<ostringstream*>( &(ostringstream() << len) )->str());
     for (int i = 0; i < len; i++) { 
         argz[i] = args->Get(i);
     }
 
-    Handle<Function> function = Handle<Function>::Cast(global->Get(function_name));
+    // we cannot simply retrieve the function from the global scope as the
+    // name can be something like `lol.flop['hi']`. wrapping the call in a
+    // temporary function is much simpler than attempting to split the name
+    // and check all the individual parts.
+    Handle<String> prefix = String::NewFromUtf8(isolate, "function __call() { return ");
+    Handle<String> suffix = String::NewFromUtf8(isolate, ".apply(null, arguments); }");
+    Handle<String> source = String::Concat(String::Concat(prefix, function_name), suffix);
+    Handle<Script> script = Script::Compile(source);
+    Handle<Value> eval_result = script->Run();
 
-    Handle<Value> result;
-    result = function->Call(global, len, argz);
-
-    if (result.IsEmpty()) {
+    if (eval_result.IsEmpty()) {
         Handle<Value> exception = trycatch.Exception();
         error(isolate, exception);
     } else {
-        ok(isolate, result);
+        Handle<Function> function = Handle<Function>::Cast(global->Get(String::NewFromUtf8(isolate, "__call")));
+        Handle<Value> result = function->Call(global, len, argz);
+
+        if (result.IsEmpty()) {
+            Handle<Value> exception = trycatch.Exception();
+            error(isolate, exception);
+        } else {
+            ok(isolate, result);
+        }
     }
+
+
+    // result = function->Call(global, len, argz);
+    
+    // result = script->CallFunction(String::NewFromUtf8(isolate, "__call"), len, argz);
+
 }
 
 bool command_loop(int scriptc, char* scriptv[]) {
