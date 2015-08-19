@@ -148,8 +148,11 @@ void call(Isolate* isolate, string input) {
     Handle<Context> context = isolate->GetCurrentContext();
     Handle<Object> global = context->Global();
 
-    Local<String> function_name = instructions->Get(String::NewFromUtf8(isolate, "function"))->ToString();
-    Local<Array> args = Local<Array>::Cast(instructions->Get(String::NewFromUtf8(isolate, "args")));
+    Local<String> function_name =
+        instructions->Get(String::NewFromUtf8(isolate, "function"))->ToString();
+    Local<Array> args =
+        Local<Array>::Cast(instructions->Get(String::NewFromUtf8(isolate,
+                        "args")));
 
     int len = args->Length();
     Handle<Value> argz[len];
@@ -158,7 +161,6 @@ void call(Isolate* isolate, string input) {
         argz[i] = args->Get(i);
     }
 
-    Handle<Value> function_ref = global->Get(function_name);
     Handle<Function> function = Handle<Function>::Cast(global->Get(function_name));
 
     Handle<Value> result = function->Call(global, 2, argz);
