@@ -10,9 +10,10 @@ const uint8_t OK_R = 0;
 const uint8_t ERROR_R = 1;
 const uint8_t ERROR_WITH_LINENO_R = 1;
 
-const uint8_t EVAL_R = 0;
-const uint8_t RESET_VM_R = 2;
-const uint8_t SET_R = 3;
+const uint8_t EVAL_R = 1;
+const uint8_t CALL_R = 2;
+const uint8_t RESET_VM_R = 3;
+const uint8_t SET_R = 4;
 
 struct Packet {
     uint8_t op;
@@ -27,6 +28,7 @@ Handle<Value> wrap_error(Isolate* isolate, Handle<Value> value);
 size_t packet_length();
 bool next_packet(Packet* packet);
 void eval(Isolate* isolate, string input);
+void call(Isolate* isolate, string input);
 
 void debug(string s) {
     ofstream debug;
@@ -136,6 +138,39 @@ void eval(Isolate* isolate, string input) {
     }
 }
 
+void call(Isolate* isolate, string input) {
+    HandleScope handle_scope(isolate);
+    TryCatch trycatch;
+
+    Handle<String> json_data = String::NewFromUtf8(isolate, input.c_str());
+    Local<Object> instructions = JSON::Parse(json_data)->ToObject();
+
+    Handle<Context> context = isolate->GetCurrentContext();
+    Handle<Object> global = context->Global();
+
+    Local<String> function_name = instructions->Get(String::NewFromUtf8(isolate, "function"))->ToString();
+    Local<Array> args = Local<Array>::Cast(instructions->Get(String::NewFromUtf8(isolate, "args")));
+
+    int len = args->Length();
+    Handle<Value> argz[len];
+
+    for (uint32_t i = 0; i < len; i++) { 
+        argz[i] = args->Get(i);
+    }
+
+    Handle<Value> function_ref = global->Get(function_name);
+    Handle<Function> function = Handle<Function>::Cast(global->Get(function_name));
+
+    Handle<Value> result = function->Call(global, 2, argz);
+
+    if (result.IsEmpty()) {
+        Handle<Value> exception = trycatch.Exception();
+        error(isolate, exception);
+    } else {
+        ok(isolate, result);
+    }
+}
+
 bool command_loop(int scriptc, char* scriptv[]) {
     Isolate* isolate = Isolate::GetCurrent();
 
@@ -159,6 +194,9 @@ bool command_loop(int scriptc, char* scriptv[]) {
         switch(packet.op) {
             case EVAL_R:
                 eval(isolate, packet.data);
+                break;
+            case CALL_R:
+                call(isolate, packet.data);
                 break;
             case RESET_VM_R:
                 reset = true;

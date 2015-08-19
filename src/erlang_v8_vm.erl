@@ -26,9 +26,10 @@
 -define(DEFAULT_TIMEOUT, 5000).
 -define(MAX_SOURCE_SIZE, 65535).
 
--define(OP_EVAL, 0).
--define(OP_RESET, 2).
--define(OP_SET, 3).
+-define(OP_EVAL, 1).
+-define(OP_CALL, 2).
+-define(OP_RESET, 3).
+-define(OP_SET, 4).
 
 -record(state, {
         initial_source = [],
@@ -75,17 +76,15 @@ init([Opts]) ->
     State = start_port(parse_opts(Opts)),
     {ok, State}.
 
-handle_call({call, FunctionName, Args, Timeout}, From, State) ->
-    %% TODO: call should be a special op and decoding should be done in 
-    %% the cc wrapper.
-    SerializedArgs = jsx:encode(escape_args(Args)),
-    Source = <<FunctionName/binary, ".apply(null, JSON.parse('",
-               SerializedArgs/binary ,"'));">>,
-    handle_call({eval, Source, Timeout}, From, State);
-
-handle_call({eval, Source, _Timeout}, _From, State)
-  when size(Source) > ?MAX_SOURCE_SIZE ->
-    {reply, {error, invalid_source_size}, State};
+handle_call({call, FunctionName, Args, Timeout}, _From,
+            #state{port = Port} = State) ->
+    Source = jsx:encode([{function, FunctionName}, {args, Args}]),
+    case call_js(Port, Source, Timeout) of
+        {ok, Response} ->
+            {reply, {ok, Response}, State};
+        {error, Reason} ->
+            {reply, {error, Reason}, start_port(kill_port(State))}
+    end;
 
 handle_call({eval, Source, Timeout}, _From, #state{port = Port} = State) ->
     case eval_js(Port, Source, Timeout) of
@@ -173,9 +172,17 @@ monitor_port(#state{port = Port} = State) ->
 os_kill(OSPid) ->
     os:cmd(io_lib:format("kill -9 ~p", [OSPid])).
 
-%% @doc Evaluate source on port
 eval_js(Port, Source, Timeout) ->
-    Port ! {self(), {command, <<?OP_EVAL:8, Source/binary>>}},
+    run(Port, ?OP_EVAL, Source, Timeout).
+
+call_js(Port, Source, Timeout) ->
+    run(Port, ?OP_CALL, Source, Timeout).
+
+%% @doc Evaluate source on port
+run(_Port, _Op, Source, _Timeout) when size(Source) > ?MAX_SOURCE_SIZE ->
+    {error, invalid_source_size};
+run(Port, Op, Source, Timeout) ->
+    Port ! {self(), {command, <<Op:8, Source/binary>>}},
     receive
         {Port, {data, <<_:8, "undefined">>}} ->
             {ok, undefined};
@@ -215,21 +222,21 @@ parse_opt({file, F}, #state{initial_source = InitialSource} = State) ->
 %% @doc Ignore unknown options.
 parse_opt(_, State) -> State.
 
-valid_utf8(B) ->
-    case unicode:characters_to_list(B) of
-        {_Type, Data, _Rest} -> Data;
-        _ -> B
-    end.
-
-escape_args(Args) ->
-    lists:map(fun(Arg) when is_binary(Arg) -> escape_binary(valid_utf8(Arg));
-                 (Arg) -> Arg
-    end, Args).
-
-escape_binary(B) ->
-    escape_binary(B, [{<<"\n">>, <<"\\n">>}, {<<"\r">>, <<"\\r">>},
-                      {<<"\b">>, <<"\\b">>}, {<<"\t">>, <<"\\t">>}]).
-escape_binary(B, []) ->
-    B;
-escape_binary(B, [{X, Y}|T]) ->
-    escape_binary(binary:replace(B, X, Y, [global]), T).
+%% valid_utf8(B) ->
+%%     case unicode:characters_to_list(B) of
+%%         {_Type, Data, _Rest} -> Data;
+%%         _ -> B
+%%     end.
+%%
+%% escape_args(Args) ->
+%%     lists:map(fun(Arg) when is_binary(Arg) -> escape_binary(valid_utf8(Arg));
+%%                  (Arg) -> Arg
+%%     end, Args).
+%%
+%% escape_binary(B) ->
+%%     escape_binary(B, [{<<"\n">>, <<"\\n">>}, {<<"\r">>, <<"\\r">>},
+%%                       {<<"\b">>, <<"\\b">>}, {<<"\t">>, <<"\\t">>}]).
+%% escape_binary(B, []) ->
+%%     B;
+%% escape_binary(B, [{X, Y}|T]) ->
+%%     escape_binary(binary:replace(B, X, Y, [global]), T).
