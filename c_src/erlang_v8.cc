@@ -157,13 +157,16 @@ void call(Isolate* isolate, string input) {
     int len = args->Length();
     Handle<Value> argz[len];
 
-    for (uint32_t i = 0; i < len; i++) { 
+
+    // debug(static_cast<ostringstream*>( &(ostringstream() << len) )->str());
+    for (int i = 0; i < len; i++) { 
         argz[i] = args->Get(i);
     }
 
     Handle<Function> function = Handle<Function>::Cast(global->Get(function_name));
 
-    Handle<Value> result = function->Call(global, 2, argz);
+    Handle<Value> result;
+    result = function->Call(global, len, argz);
 
     if (result.IsEmpty()) {
         Handle<Value> exception = trycatch.Exception();

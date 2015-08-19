@@ -72,12 +72,22 @@ call(_Config) ->
     {ok, 4} = erlang_v8:call(P, <<"sum">>, [2, 2]),
     {ok, <<"helloworld">>} =
         erlang_v8:call(P, <<"sum">>, [<<"hello">>, <<"world">>]),
+        
+    %% a few arguments
+    {ok, undefined} =
+        erlang_v8:eval(P, <<"function mul(a, b, c, d) { return a * b * c * d }">>),
+    {ok, 1} = erlang_v8:call(P, <<"mul">>, [1, 1, 1, 1]),
 
     %% object arguments
     {ok, undefined} =
         erlang_v8:eval(P, <<"function get(o) { return o.a; }">>),
     {ok, undefined} = erlang_v8:call(P, <<"get">>, [2, 2]),
     {ok, 1} = erlang_v8:call(P, <<"get">>, [[{a, 1}]]),
+    
+    %% object fun
+    %% {ok, undefined} =
+    %%     erlang_v8:eval(P, <<"var x = { y: function z() { return 1; } }">>),
+    %% {ok, 1} = erlang_v8:call(P, <<"x.y">>, []),
 
     erlang_v8:stop_vm(P),
     ok.
