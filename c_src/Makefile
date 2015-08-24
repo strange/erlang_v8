@@ -41,7 +41,7 @@ $(PRIV_DIR):
 	mkdir -p $(PRIV_DIR)
 
 $(V8_DIR): $(LIB_DIR)
-	curl -L $(V8_URL) | tar xvz -C ../lib
+	curl -L $(V8_URL) | tar xvz -C $(LIB_DIR) 
 
 $(V8_DIR)/build/gyp: $(V8_DIR)
 	@cd $(V8_DIR) && make dependencies
