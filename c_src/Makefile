@@ -7,12 +7,15 @@ BUILD_ARCH_32 := ia32
 BUILD_ARCH_64 := x64
 BUILD_ARCH := $(BUILD_ARCH_$(ARCH))
 
+LIB_DIR := ../lib
+PRIV_DIR := ../priv
+
 V8_REF := 49744859536225e7ac3b726e5b019dd99e127e6f
-V8_DIR := ../lib/v8-$(V8_REF)
+V8_DIR := $(LIB_DIR)/v8-$(V8_REF)
 V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 V8_URL := https://codeload.github.com/v8/v8/tar.gz/$(V8_REF)
 
-TARGET_BIN := ../priv/erlang_v8
+TARGET_BIN := $(PRIV_DIR)/erlang_v8
 TARGET_SRC := erlang_v8.cc
 
 .PHONY: all v8 local-clean local-clean-all
@@ -31,10 +34,13 @@ local-clean-all::
 
 v8: $(TARGET_BIN)
 
-lib:
-	mkdir -p lib
+$(LIB_DIR):
+	mkdir -p $(LIB_DIR)
 
-$(V8_DIR): lib
+$(PRIV_DIR):
+	mkdir -p $(PRIV_DIR)
+
+$(V8_DIR): $(LIB_DIR)
 	curl -L $(V8_URL) | tar xvz -C ../lib
 
 $(V8_DIR)/build/gyp: $(V8_DIR)
@@ -50,8 +56,7 @@ $(V8_LIB)/libv8_base.$(BUILD_ARCH).a: $(V8_DIR)/build/gyp
 $(TARGET_SRC): $(V8_LIB)/libv8_base.$(BUILD_ARCH).a
 	@:
 
-$(TARGET_BIN): $(TARGET_SRC)
-	@mkdir -p priv
+$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) 
 ifeq ($(OS),Darwin)
 	# We need to link libstdc++ as XCode defaults to libc++, and use slightly
 	# different flags, on OS X. The following assumes Mavericks, XCode and

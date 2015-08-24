@@ -177,9 +177,12 @@ void call(Isolate* isolate, string input) {
     // name can be something like `lol.flop['hi']`. wrapping the call in a
     // temporary function is much simpler than attempting to split the name
     // and check all the individual parts.
-    Handle<String> prefix = String::NewFromUtf8(isolate, "function __call() { return ");
-    Handle<String> suffix = String::NewFromUtf8(isolate, ".apply(null, arguments); }");
-    Handle<String> source = String::Concat(String::Concat(prefix, function_name), suffix);
+    Handle<String> prefix = String::NewFromUtf8(isolate,
+            "function __call() { return ");
+    Handle<String> suffix = String::NewFromUtf8(isolate,
+            ".apply(null, arguments); }");
+    Handle<String> source = String::Concat(String::Concat(prefix,
+                function_name), suffix);
     Handle<Script> script = Script::Compile(source);
     Handle<Value> eval_result = script->Run();
 
@@ -187,7 +190,8 @@ void call(Isolate* isolate, string input) {
         Handle<Value> exception = trycatch.Exception();
         error(isolate, exception);
     } else {
-        Handle<Function> function = Handle<Function>::Cast(global->Get(String::NewFromUtf8(isolate, "__call")));
+        Handle<Function> function = Handle<Function>::Cast(
+                global->Get(String::NewFromUtf8(isolate, "__call")));
         Handle<Value> result = function->Call(global, len, argz);
 
         if (result.IsEmpty()) {
@@ -197,12 +201,6 @@ void call(Isolate* isolate, string input) {
             ok(isolate, result);
         }
     }
-
-
-    // result = function->Call(global, len, argz);
-    
-    // result = script->CallFunction(String::NewFromUtf8(isolate, "__call"), len, argz);
-
 }
 
 bool command_loop(int scriptc, char* scriptv[]) {
