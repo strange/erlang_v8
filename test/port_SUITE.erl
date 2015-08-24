@@ -259,9 +259,12 @@ big_input(_Config) ->
     {ok, undefined} = erlang_v8:eval(VM, <<"function call(arg) {
         return arg;
     }">>),
-    Bytes = random_bytes(300000),
 
-    {error, invalid_source_size} = erlang_v8:call(VM, <<"call">>, [Bytes]),
+    {error, invalid_source_size} = erlang_v8:call(VM, <<"call">>,
+                                                  [random_bytes(5 * 1024 * 1024)]),
+
+    {ok, _} = erlang_v8:call(VM, <<"call">>, [random_bytes(30)]),
+
     ok = erlang_v8:stop_vm(VM),
     ok.
 

@@ -37,12 +37,17 @@ void debug(string s) {
     debug.close();
 }
 
-void resp(Isolate* isolate, Handle<Value> response, int op) {
+void resp(Isolate* isolate, Handle<Value> response, uint8_t op) {
     String::Utf8Value utf8(json_stringify(isolate, response));
-    uint16_t len = utf8.length() + 1;
+    uint32_t len = utf8.length() + 1;
 
-    cout << (char)((len >> 8) & 0xff) << (char)(len & 0xff);
-    cout << (char)op;
+    cout << (uint8_t)((len >> 24) & 0xff);
+    cout << (uint8_t)((len >> 16) & 0xff);
+    cout << (uint8_t)((len >> 8) & 0xff);
+    cout << (uint8_t)(len & 0xff);
+
+    cout << op;
+
     cout << *utf8;
     cout.flush();
 }
@@ -85,13 +90,18 @@ Handle<Value> json_stringify(Isolate* isolate, Handle<Value> obj) {
 }
 
 size_t packet_length() {
-    char byte1, byte2;
+    char bytes[4];
+    size_t len;
 
-    if (!cin.get(byte1) || !cin.get(byte2)) {
+    if (!cin.get(bytes[0]) || !cin.get(bytes[1]) ||
+            !cin.get(bytes[2]) || !cin.get(bytes[3])) {
         return 0;
     }
 
-    return ((uint8_t)byte1 << 8) | (uint8_t)byte2;
+    len = (((uint8_t)bytes[0] << 24) | ((uint8_t)bytes[1] << 16) |
+            ((uint8_t)bytes[2] << 8) | (uint8_t)bytes[3]);
+
+    return len;
 }
 
 bool next_packet(Packet* packet) {
@@ -103,6 +113,7 @@ bool next_packet(Packet* packet) {
 
     string buf;
     buf.resize(len);
+
 
     for (int bytes_read = 0; bytes_read < len;) {                                                  
         if (!cin.read(&buf[bytes_read], len - bytes_read)) {

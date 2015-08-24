@@ -22,9 +22,9 @@
 -export([code_change/3]).
 
 -define(EXECUTABLE, "erlang_v8").
--define(SPAWN_OPTS, [{packet, 2}, binary]).
+-define(SPAWN_OPTS, [{packet, 4}, binary]).
 -define(DEFAULT_TIMEOUT, 5000).
--define(MAX_SOURCE_SIZE, 65535).
+-define(MAX_SOURCE_SIZE, 5 * 1024 * 1024).
 
 -define(OP_EVAL, 1).
 -define(OP_CALL, 2).
@@ -79,20 +79,10 @@ init([Opts]) ->
 handle_call({call, FunctionName, Args, Timeout}, _From,
             #state{port = Port} = State) ->
     Source = jsx:encode([{function, FunctionName}, {args, Args}]),
-    case call_js(Port, Source, Timeout) of
-        {ok, Response} ->
-            {reply, {ok, Response}, State};
-        {error, Reason} ->
-            {reply, {error, Reason}, start_port(kill_port(State))}
-    end;
+    handle_response(send_to_port(Port, ?OP_CALL, Source, Timeout), State);
 
 handle_call({eval, Source, Timeout}, _From, #state{port = Port} = State) ->
-    case eval_js(Port, Source, Timeout) of
-        {ok, Response} ->
-            {reply, {ok, Response}, State};
-        {error, Reason} ->
-            {reply, {error, Reason}, start_port(kill_port(State))}
-    end;
+    handle_response(send_to_port(Port, ?OP_EVAL, Source, Timeout), State);
 
 handle_call(set, _From, #state{port = Port} = State) ->
     Port ! {self(), {command, <<?OP_SET:8>>}},
@@ -125,6 +115,13 @@ code_change(_OldVersion, State, _Extra) ->
     {ok, State}.
 
 %% Internal API
+
+handle_response({ok, Response}, State) ->
+    {reply, {ok, Response}, State};
+handle_response({error, invalid_source_size} = Error, State) ->
+    {reply, Error, State};
+handle_response({error, _Reason} = Error, State) ->
+    {reply, Error, start_port(kill_port(State))}.
 
 %% @doc Close port gently.
 close_port(#state{monitor_pid = Pid, port = Port} = State) ->
@@ -172,16 +169,11 @@ monitor_port(#state{port = Port} = State) ->
 os_kill(OSPid) ->
     os:cmd(io_lib:format("kill -9 ~p", [OSPid])).
 
-eval_js(Port, Source, Timeout) ->
-    run(Port, ?OP_EVAL, Source, Timeout).
-
-call_js(Port, Source, Timeout) ->
-    run(Port, ?OP_CALL, Source, Timeout).
-
-%% @doc Evaluate source on port
-run(_Port, _Op, Source, _Timeout) when size(Source) > ?MAX_SOURCE_SIZE ->
+%% @doc Send source to port and wait for response
+send_to_port(_Port, _Op, Source, _Timeout)
+  when size(Source) > ?MAX_SOURCE_SIZE ->
     {error, invalid_source_size};
-run(Port, Op, Source, Timeout) ->
+send_to_port(Port, Op, Source, Timeout) ->
     Port ! {self(), {command, <<Op:8, Source/binary>>}},
     receive
         {Port, {data, <<_:8, "undefined">>}} ->
