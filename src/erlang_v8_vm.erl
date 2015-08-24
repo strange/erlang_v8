@@ -24,7 +24,7 @@
 -define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 4}, binary]).
 -define(DEFAULT_TIMEOUT, 5000).
--define(MAX_SOURCE_SIZE, 5 * 1024 * 1024).
+-define(MAX_SOURCE_SIZE, 16#FFFFFFFF).
 
 -define(OP_EVAL, 1).
 -define(OP_CALL, 2).
@@ -33,6 +33,7 @@
 
 -record(state, {
         initial_source = [],
+        max_source_size = 5 * 1024 * 1024,
         port,
         monitor_pid
     }).
@@ -77,12 +78,15 @@ init([Opts]) ->
     {ok, State}.
 
 handle_call({call, FunctionName, Args, Timeout}, _From,
-            #state{port = Port} = State) ->
+            #state{port = Port, max_source_size = MaxSourceSize} = State) ->
     Source = jsx:encode([{function, FunctionName}, {args, Args}]),
-    handle_response(send_to_port(Port, ?OP_CALL, Source, Timeout), State);
+    handle_response(send_to_port(Port, ?OP_CALL, Source, Timeout,
+                                 MaxSourceSize), State);
 
-handle_call({eval, Source, Timeout}, _From, #state{port = Port} = State) ->
-    handle_response(send_to_port(Port, ?OP_EVAL, Source, Timeout), State);
+handle_call({eval, Source, Timeout}, _From,
+            #state{port = Port, max_source_size = MaxSourceSize} = State) ->
+    handle_response(send_to_port(Port, ?OP_EVAL, Source, Timeout,
+                                 MaxSourceSize), State);
 
 handle_call(set, _From, #state{port = Port} = State) ->
     Port ! {self(), {command, <<?OP_SET:8>>}},
@@ -170,10 +174,10 @@ os_kill(OSPid) ->
     os:cmd(io_lib:format("kill -9 ~p", [OSPid])).
 
 %% @doc Send source to port and wait for response
-send_to_port(_Port, _Op, Source, _Timeout)
-  when size(Source) > ?MAX_SOURCE_SIZE ->
+send_to_port(_Port, _Op, Source, _Timeout, MaxSourceSize)
+  when size(Source) > MaxSourceSize ->
     {error, invalid_source_size};
-send_to_port(Port, Op, Source, Timeout) ->
+send_to_port(Port, Op, Source, Timeout, _MaxSourceSize) ->
     Port ! {self(), {command, <<Op:8, Source/binary>>}},
     receive
         {Port, {data, <<_:8, "undefined">>}} ->
@@ -210,6 +214,14 @@ parse_opt({file, F}, #state{initial_source = InitialSource} = State) ->
     %% keeping multiple copies of the JS source code in memory.
     {ok, S} = file:read_file(F),
     State#state{initial_source = [S|InitialSource]};
+
+%% @doc Invalid max source size
+parse_opt({max_source_size, N}, _State) when N > ?MAX_SOURCE_SIZE ->
+    error(invalid_max_source_size_value);
+
+%% @doc Set max source size for this vm
+parse_opt({max_source_size, N}, State) ->
+    State#state{max_source_size = N};
 
 %% @doc Ignore unknown options.
 parse_opt(_, State) -> State.
