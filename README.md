@@ -22,16 +22,17 @@ controlling process from JS) and a few other things.
 
 ## Building
 
-Subversion, and Python 2.6-2.7 (required by GYP) are required to build v8.
+Subversion, and Python 2.6-2.7 (needed by GYP) are required to build v8.
 
 Build using make:
 
     make
 
-Or with rebar:
+GYP is not compatible with Python3. If `python3` is the default, you can
+symlink `python2` to `~/bin` and set your path temporarily before compiling:
 
-    rebar get-deps
-    rebar compile
+    ln -s /usr/bin/python2 ~/bin/python
+    PATH=$HOME/bin:$PATH make
 
 ## Tests
 
@@ -85,17 +86,25 @@ You can also initialize the VMs using paths to source files:
 
     {ok, VM} = erlang_v8:start_vm([{file, "a.js"}, {file, "b.js"}]).
 
+Set a custom timeout (defaults to `5000`):
+
+    {error, timeout} =  erlang_v8:eval(VM, <<"while (true) {}">>, 500).
+
 ## Pooling
 
 You might want to use some kind of pooling mechanism as the VMs are real OS
 processes. I've had much success using
 [devinus/poolboy](https://github.com/devinus/poolboy) for this purpose in the
 past (I considered including the application, but decided against it as it
-might not always be desireable to have a pool. Besides, poolboy is easy to set
+might not always be desirable to have a pool. Besides, poolboy is easy to set
 up).
+
+I'm also working on
+[strange/erlang-v8-lib](https://github.com/strange/erlang-v8-lib), a little
+framework that, among other things, implements a pool.
 
 ## TODO
 
-Lots of testing, improve the communication protocol, clean up api, experiment
-with calling Erlang from JS, experiment with different ways of passing args to
-calls (maybe via the communication protocol) etc.
+- Use custom protocol to support more data types (binary, dates etc
+- Refactor the API
+- Experiment with calling Erlang from v8 synchronously
