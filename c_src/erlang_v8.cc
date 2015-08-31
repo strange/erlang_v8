@@ -19,14 +19,7 @@ struct Packet {
 };
 
 Handle<Value> json_stringify(Isolate* isolate, Handle<Value> obj);
-void resp(Isolate* isolate, Handle<Value> response, int op);
-void ok(Isolate* isolate, Handle<Value> response);
-void error(Isolate* isolate, Handle<Value> response);
 Handle<Value> wrap_error(Isolate* isolate, Handle<Value> value);
-size_t packet_length();
-bool next_packet(Packet* packet);
-void eval(Isolate* isolate, string input);
-void call(Isolate* isolate, string input);
 
 void debug(string s) {
     ofstream debug;
