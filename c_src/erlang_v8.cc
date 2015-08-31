@@ -159,18 +159,19 @@ void call(Isolate* isolate, string input) {
     Handle<Context> context = isolate->GetCurrentContext();
     Handle<Object> global = context->Global();
 
-    Local<String> function_name =
-        instructions->Get(String::NewFromUtf8(isolate, "function"))->ToString();
-    Local<Array> args =
-        Local<Array>::Cast(instructions->Get(String::NewFromUtf8(isolate,
-                        "args")));
+    Local<String> function_key = String::NewFromUtf8(isolate, "function");
+    Local<String> function_name = instructions->Get(function_key)->ToString();
 
-    int len = args->Length();
-    Handle<Value> *argz = new Handle<Value>[len];
+    Local<String> args_key = String::NewFromUtf8(isolate, "args");
+    Local<Value> args_value = instructions->Get(args_key);
+    Local<Array> raw_args = Local<Array>::Cast(args_value);
+
+    int len = raw_args->Length();
+    Handle<Value> *args = new Handle<Value>[len];
 
     // debug(static_cast<ostringstream*>( &(ostringstream() << len) )->str());
     for (int i = 0; i < len; i++) { 
-        argz[i] = args->Get(i);
+        args[i] = raw_args->Get(i);
     }
 
     // we cannot simply retrieve the function from the global scope as the
@@ -190,9 +191,9 @@ void call(Isolate* isolate, string input) {
         Handle<Value> exception = trycatch.Exception();
         error(isolate, exception);
     } else {
-        Handle<Function> function = Handle<Function>::Cast(
-                global->Get(String::NewFromUtf8(isolate, "__call")));
-        Handle<Value> result = function->Call(global, len, argz);
+        Local<String> fn = String::NewFromUtf8(isolate, "__call");
+        Handle<Function> function = Handle<Function>::Cast(global->Get(fn));
+        Handle<Value> result = function->Call(global, len, args);
 
         if (result.IsEmpty()) {
             Handle<Value> exception = trycatch.Exception();
