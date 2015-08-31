@@ -166,7 +166,7 @@ void call(Isolate* isolate, string input) {
                         "args")));
 
     int len = args->Length();
-    Handle<Value> argz[len];
+    Handle<Value> *argz = new Handle<Value>[len];
 
     // debug(static_cast<ostringstream*>( &(ostringstream() << len) )->str());
     for (int i = 0; i < len; i++) { 
