@@ -6,14 +6,12 @@
 using namespace v8;
 using namespace std;
 
-const uint8_t OK_R = 0;
-const uint8_t ERROR_R = 1;
-const uint8_t ERROR_WITH_LINENO_R = 1;
+const uint8_t OP_OK = 0;
+const uint8_t OP_ERROR = 1;
 
-const uint8_t EVAL_R = 1;
-const uint8_t CALL_R = 2;
-const uint8_t RESET_VM_R = 3;
-const uint8_t SET_R = 4;
+const uint8_t OP_EVAL = 1;
+const uint8_t OP_CALL = 2;
+const uint8_t OP_RESET_VM = 3;
 
 struct Packet {
     uint8_t op;
@@ -53,11 +51,11 @@ void resp(Isolate* isolate, Handle<Value> response, uint8_t op) {
 }
 
 void ok(Isolate* isolate, Handle<Value> response) {
-    resp(isolate, response, OK_R);
+    resp(isolate, response, OP_OK);
 }
 
 void error(Isolate* isolate, Handle<Value> response) {
-    resp(isolate, wrap_error(isolate, response), ERROR_R);
+    resp(isolate, wrap_error(isolate, response), OP_ERROR);
 }
 
 Handle<Value> wrap_error(Isolate* isolate, Handle<Value> exception) {
@@ -225,13 +223,13 @@ bool command_loop(int scriptc, char* scriptv[]) {
     Packet packet;
     while (!reset && next_packet(&packet)) {
         switch(packet.op) {
-            case EVAL_R:
+            case OP_EVAL:
                 eval(isolate, packet.data);
                 break;
-            case CALL_R:
+            case OP_CALL:
                 call(isolate, packet.data);
                 break;
-            case RESET_VM_R:
+            case OP_RESET_VM:
                 reset = true;
                 break;
         }
