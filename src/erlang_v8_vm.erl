@@ -31,6 +31,9 @@
 -define(OP_RESET, 3).
 -define(OP_SET, 4).
 
+-define(OP_OK, 0).
+-define(OP_ERROR, 1).
+
 -record(state, {
         initial_source = [],
         max_source_size = 5 * 1024 * 1024,
@@ -182,9 +185,9 @@ send_to_port(Port, Op, Source, Timeout, _MaxSourceSize) ->
     receive
         {Port, {data, <<_:8, "undefined">>}} ->
             {ok, undefined};
-        {Port, {data, <<0:8, Response/binary>>}} ->
+        {Port, {data, <<?OP_OK:8, Response/binary>>}} ->
             {ok, jsx:decode(Response)};
-        {Port, {data, <<1:8, Response/binary>>}} ->
+        {Port, {data, <<?OP_ERROR:8, Response/binary>>}} ->
             [{<<"error">>, Reason}] = jsx:decode(Response),
             {error, Reason};
         {Port, Error} ->
