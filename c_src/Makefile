@@ -10,8 +10,11 @@ BUILD_ARCH := $(BUILD_ARCH_$(ARCH))
 LIB_DIR := ../lib
 PRIV_DIR := ../priv
 
-V8_REF := 49744859536225e7ac3b726e5b019dd99e127e6f
-V8_DIR := $(LIB_DIR)/v8-$(V8_REF)
+DEPOT_DIR := $(LIB_DIR)/depot_tools
+
+V8_REF := 7e9a0251ded07fda6c783871d40af052c68fa7f4
+#V8_DIR := $(LIB_DIR)/v8-$(V8_REF)
+V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 V8_URL := https://codeload.github.com/v8/v8/tar.gz/$(V8_REF)
 
@@ -40,18 +43,23 @@ $(LIB_DIR):
 $(PRIV_DIR):
 	mkdir -p $(PRIV_DIR)
 
-$(V8_DIR): $(LIB_DIR)
+$(DEPOT_DIR): $(LIB_DIR)
+	@cd $(LIB_DIR) && git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+
+$(V8_DIR): $(LIB_DIR) $(DEPOT_DIR)
 	curl -L $(V8_URL) | tar xvz -C $(LIB_DIR) 
+	# $(DEPOT_DIR)/fetch --no-history v8 --revision=$(V8_REF)
 
 $(V8_DIR)/build/gyp: $(V8_DIR)
-	@cd $(V8_DIR) && make dependencies
+	@cd $(V8_DIR) && ../depot_tools/gclient sync
+	# @cd $(V8_DIR) && make dependencies
 	@touch $@
 
 $(V8_LIB)/libv8_base.$(BUILD_ARCH).a: $(V8_DIR)/build/gyp
 	@cd $(V8_DIR) && make $(BUILD_ARCH).release werror=no
 	@touch $@
-	@cp $(V8_LIB)/obj.target/tools/gyp/*.a $(V8_LIB) 2> /dev/null || :
-	@cp $(V8_LIB)/obj.target/third_party/icu/*.a $(V8_LIB) 2> /dev/null || :
+	@cp $(V8_LIB)/out/o$(BUILD_ARCH).release/bj.target/tools/gyp/*.a $(V8_LIB) 2> /dev/null || :
+	@cp $(V8_LIB)/out/$(BUILD_ARCH).release/obj.target/third_party/icu/*.a $(V8_LIB) 2> /dev/null || :
 
 $(TARGET_SRC): $(V8_LIB)/libv8_base.$(BUILD_ARCH).a
 	@:
