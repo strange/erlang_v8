@@ -1,7 +1,9 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
-#include <v8.h>
+
+#include "include/libplatform/libplatform.h"
+#include "include/v8.h"
 
 using namespace v8;
 using namespace std;
@@ -228,7 +230,7 @@ bool command_loop(int scriptc, char* scriptv[]) {
         }
         packet = (const struct Packet){ 0 };
     }
-    V8::ContextDisposedNotification();
+    Isolate::GetCurrent()->ContextDisposedNotification(); 
     return reset;
 }
 
