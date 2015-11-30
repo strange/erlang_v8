@@ -31,8 +31,14 @@ void debug(string s) {
 }
 
 void resp(Isolate* isolate, Handle<Value> response, uint8_t op) {
-    String::Utf8Value utf8(json_stringify(isolate, response));
+    String::Utf8Value utf8 (json_stringify(isolate, response));
     uint32_t len = utf8.length() + 1;
+
+    debug("resp");
+    debug(std::to_string(len));
+    debug(std::to_string(response->IsNumber()));
+    // std::string foo = std::string(*utf8);    
+    // debug(foo);
 
     cout << (uint8_t)((len >> 24) & 0xff);
     cout << (uint8_t)((len >> 16) & 0xff);
@@ -43,13 +49,16 @@ void resp(Isolate* isolate, Handle<Value> response, uint8_t op) {
 
     cout << *utf8;
     cout.flush();
+    debug("DATA SENT");
 }
 
 void ok(Isolate* isolate, Handle<Value> response) {
+    debug("ok");
     resp(isolate, response, OP_OK);
 }
 
 void error(Isolate* isolate, Handle<Value> response) {
+    debug("error");
     resp(isolate, wrap_error(isolate, response), OP_ERROR);
 }
 
@@ -71,8 +80,8 @@ Handle<Value> json_stringify(Isolate* isolate, Handle<Value> obj) {
     Handle<Object> global = context->Global();
     EscapableHandleScope handle_scope(isolate);
 
-    Handle<Object> JSON = global->Get(String::NewFromUtf8(isolate, "JSON"))
-                               ->ToObject();
+    Handle<Value> JSONValue = global->Get(String::NewFromUtf8(isolate, "JSON"));
+    Handle<Object> JSON = JSONValue->ToObject();
     Handle<Function> stringify = Handle<Function>::Cast(
             JSON->Get(String::NewFromUtf8(isolate, "stringify")));
 
@@ -195,10 +204,11 @@ void call(Isolate* isolate, string input) {
             ok(isolate, result);
         }
     }
+
 }
 
 bool command_loop(int scriptc, char* scriptv[]) {
-    Isolate* isolate = Isolate::GetCurrent();
+    Isolate* isolate = Isolate::New();
 
     HandleScope handle_scope(isolate);
 
@@ -217,14 +227,18 @@ bool command_loop(int scriptc, char* scriptv[]) {
     bool reset = false;
     Packet packet;
     while (!reset && next_packet(&packet)) {
+        debug("-----");
         switch(packet.op) {
             case OP_EVAL:
+                debug("EVAL");
                 eval(isolate, packet.data);
                 break;
             case OP_CALL:
+                debug("CALL");
                 call(isolate, packet.data);
                 break;
             case OP_RESET_VM:
+                debug("RESET");
                 reset = true;
                 break;
         }
@@ -234,10 +248,31 @@ bool command_loop(int scriptc, char* scriptv[]) {
     return reset;
 }
 
+Handle<Context> CreateContext(Isolate* isolate) {
+    v8::Handle<v8::ObjectTemplate> g = v8::ObjectTemplate::New(isolate);
+    return v8::Context::New(isolate, NULL, g);
+}
+
 int main(int argc, char* argv[]) {
     ios_base::sync_with_stdio(false);
 
-    while (command_loop(argc, argv));
+    V8::InitializeICU();
+    Platform* platform = v8::platform::CreateDefaultPlatform();
+    V8::InitializePlatform(platform);
+    V8::Initialize();
+    V8::SetFlagsFromCommandLine(&argc, argv, true);
+    Isolate* isolate = v8::Isolate::New();
+
+    {
+        v8::Isolate::Scope isolate_scope(isolate);
+        v8::HandleScope handle_scope(isolate);
+
+        Handle<Context> context = CreateContext(isolate);
+
+        Context::Scope context_scope(context);
+
+        while (command_loop(argc, argv));
+    }
 
     return 0;
 }
