@@ -1,9 +1,15 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <assert.h>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
+
+#define DEBUG 0
+#define TRACE(fmt, ...) \
+    do { if (DEBUG) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
+            __LINE__, __func__, __VA_ARGS__); } while (0)
 
 using namespace v8;
 using namespace std;
@@ -20,25 +26,24 @@ struct Packet {
     string data;
 };
 
-Handle<Value> json_stringify(Isolate* isolate, Handle<Value> obj);
-Handle<Value> wrap_error(Isolate* isolate, Handle<Value> value);
+Handle<Value> JSONStringify(Isolate* isolate, Handle<Value> obj);
+Handle<Value> WrapError(Isolate* isolate, Handle<Value> value);
 
-void debug(string s) {
-    ofstream debug;
-    debug.open("/tmp/debug.txt", ios::app);
-    debug << s << endl;
-    debug.close();
+const char* ToCString(const v8::String::Utf8Value& value) {
+  return *value ? *value : "<string conversion failed>";
 }
 
-void resp(Isolate* isolate, Handle<Value> response, uint8_t op) {
-    String::Utf8Value utf8 (json_stringify(isolate, response));
-    uint32_t len = utf8.length() + 1;
+void Report(Isolate* isolate, Handle<Value> response, uint8_t op) {
+    Handle<Value> input;
 
-    debug("resp");
-    debug(std::to_string(len));
-    debug(std::to_string(response->IsNumber()));
-    // std::string foo = std::string(*utf8);    
-    // debug(foo);
+    if (response->IsUndefined()) {
+        input = String::NewFromUtf8(isolate, "undefined");
+    } else {
+        input = JSONStringify(isolate, response);
+    }
+
+    String::Utf8Value utf8 (input);
+    uint32_t len = utf8.length() + 1;
 
     cout << (uint8_t)((len >> 24) & 0xff);
     cout << (uint8_t)((len >> 16) & 0xff);
@@ -49,33 +54,48 @@ void resp(Isolate* isolate, Handle<Value> response, uint8_t op) {
 
     cout << *utf8;
     cout.flush();
-    debug("DATA SENT");
 }
 
-void ok(Isolate* isolate, Handle<Value> response) {
-    debug("ok");
-    resp(isolate, response, OP_OK);
+void ReportOK(Isolate* isolate, Handle<Value> response) {
+    Report(isolate, response, OP_OK);
 }
 
-void error(Isolate* isolate, Handle<Value> response) {
-    debug("error");
-    resp(isolate, wrap_error(isolate, response), OP_ERROR);
+void ReportError(Isolate* isolate, Handle<Value> response) {
+    Report(isolate, WrapError(isolate, response), OP_ERROR);
 }
 
-Handle<Value> wrap_error(Isolate* isolate, Handle<Value> exception) {
+void ReportException(Isolate* isolate, TryCatch* try_catch) {
+    HandleScope handle_scope(isolate);
+
+    Handle<Value> stack_trace = try_catch->StackTrace();
+
+    if (stack_trace.IsEmpty()) {
+        ReportError(isolate, try_catch->Exception());
+    } else {
+        const char* st = ToCString(String::Utf8Value(try_catch->StackTrace()));
+        TRACE("Stack: %s\n", st);
+        ReportError(isolate, try_catch->StackTrace());
+    }
+
+}
+
+Handle<Value> WrapError(Isolate* isolate, Handle<Value> exception) {
     EscapableHandleScope handle_scope(isolate);
 
-    String::Utf8Value exception_str(exception);
-
     Local<Object> obj = Object::New(isolate);
+
+    String::Utf8Value exception_string(exception);
+    std::string from = std::string(*exception_string);
+
     obj->Set(String::NewFromUtf8(isolate, "error"),
-            String::NewFromUtf8(isolate, *exception_str));
+             exception->ToString());
+
     // add line number and other fancy details ...
 
     return handle_scope.Escape(obj);
 }
 
-Handle<Value> json_stringify(Isolate* isolate, Handle<Value> obj) {
+Handle<Value> JSONStringify(Isolate* isolate, Handle<Value> obj) {
     Handle<Context> context = isolate->GetCurrentContext();
     Handle<Object> global = context->Global();
     EscapableHandleScope handle_scope(isolate);
@@ -135,25 +155,31 @@ bool next_packet(Packet* packet) {
     return true;
 }
 
-void eval(Isolate* isolate, string input) {
+void Eval(Isolate* isolate, string input) {
     HandleScope handle_scope(isolate);
-    TryCatch trycatch;
+    TryCatch try_catch(isolate);
 
     Handle<String> source = String::NewFromUtf8(isolate, input.c_str());
     Handle<Script> script = Script::Compile(source);
-    Handle<Value> result = script->Run();
 
-    if (result.IsEmpty()) {
-        Handle<Value> exception = trycatch.Exception();
-        error(isolate, exception);
+    if (script.IsEmpty()) {
+        assert(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
     } else {
-        ok(isolate, result);
+        Handle<Value> result = script->Run();
+
+        if (result.IsEmpty()) {
+            assert(try_catch.HasCaught());
+            ReportException(isolate, &try_catch);
+        } else {
+            ReportOK(isolate, result);
+        }
     }
 }
 
-void call(Isolate* isolate, string input) {
+void Call(Isolate* isolate, string input) {
     HandleScope handle_scope(isolate);
-    TryCatch trycatch;
+    TryCatch try_catch(isolate);
 
     Handle<String> json_data = String::NewFromUtf8(isolate, input.c_str());
     Local<Object> instructions = JSON::Parse(json_data)->ToObject();
@@ -190,24 +216,23 @@ void call(Isolate* isolate, string input) {
     Handle<Value> eval_result = script->Run();
 
     if (eval_result.IsEmpty()) {
-        Handle<Value> exception = trycatch.Exception();
-        error(isolate, exception);
+        assert(try_catch.HasCaught());
+        ReportException(isolate, &try_catch);
     } else {
         Local<String> fn = String::NewFromUtf8(isolate, "__call");
         Handle<Function> function = Handle<Function>::Cast(global->Get(fn));
         Handle<Value> result = function->Call(global, len, args);
 
         if (result.IsEmpty()) {
-            Handle<Value> exception = trycatch.Exception();
-            error(isolate, exception);
+            assert(try_catch.HasCaught());
+            ReportException(isolate, &try_catch);
         } else {
-            ok(isolate, result);
+            ReportOK(isolate, result);
         }
     }
-
 }
 
-bool command_loop(int scriptc, char* scriptv[]) {
+bool CommandLoop(int scriptc, char* scriptv[]) {
     Isolate* isolate = Isolate::New();
 
     HandleScope handle_scope(isolate);
@@ -227,18 +252,14 @@ bool command_loop(int scriptc, char* scriptv[]) {
     bool reset = false;
     Packet packet;
     while (!reset && next_packet(&packet)) {
-        debug("-----");
         switch(packet.op) {
             case OP_EVAL:
-                debug("EVAL");
-                eval(isolate, packet.data);
+                Eval(isolate, packet.data);
                 break;
             case OP_CALL:
-                debug("CALL");
-                call(isolate, packet.data);
+                Call(isolate, packet.data);
                 break;
             case OP_RESET_VM:
-                debug("RESET");
                 reset = true;
                 break;
         }
@@ -266,12 +287,12 @@ int main(int argc, char* argv[]) {
     {
         v8::Isolate::Scope isolate_scope(isolate);
         v8::HandleScope handle_scope(isolate);
-
+        //
         Handle<Context> context = CreateContext(isolate);
-
+        //
         Context::Scope context_scope(context);
 
-        while (command_loop(argc, argv));
+        while (CommandLoop(argc, argv));
     }
 
     return 0;
