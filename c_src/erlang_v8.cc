@@ -111,7 +111,7 @@ Handle<Value> JSONStringify(Isolate* isolate, Handle<Value> obj) {
     return handle_scope.Escape(result);
 }
 
-size_t packet_length() {
+size_t PacketLength() {
     char bytes[4];
     size_t len;
 
@@ -126,8 +126,8 @@ size_t packet_length() {
     return len;
 }
 
-bool next_packet(Packet* packet) {
-    size_t len = packet_length();
+bool NextPacket(Packet* packet) {
+    size_t len = PacketLength();
 
     if (len == 0) {
         return false;
@@ -251,7 +251,7 @@ bool CommandLoop(int scriptc, char* scriptv[]) {
 
     bool reset = false;
     Packet packet;
-    while (!reset && next_packet(&packet)) {
+    while (!reset && NextPacket(&packet)) {
         switch(packet.op) {
             case OP_EVAL:
                 Eval(isolate, packet.data);
