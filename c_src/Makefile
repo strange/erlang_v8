@@ -12,7 +12,7 @@ PRIV_DIR := ../priv
 
 DEPOT_DIR := $(LIB_DIR)/depot_tools
 
-V8_REF := 7e9a0251ded07fda6c783871d40af052c68fa7f4
+V8_REF := 85ad564c10ede76446cfe50148c4432798a7014e
 V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 
@@ -54,8 +54,8 @@ endif
 $(V8_DIR): $(LIB_DIR) $(DEPOT_DIR)
 ifeq ($(wildcard $(V8_DIR)),)
 	cd $(LIB_DIR) && $(DEPOT_DIR)/fetch --no-history v8 
-	cd $(V8_DIR) && git fetch origin 85ad564c10ede76446cfe50148c4432798a7014e
-	cd $(V8_DIR) && git reset --hard 85ad564c10ede76446cfe50148c4432798a7014e
+	cd $(V8_DIR) && git fetch origin $(V8_REF)
+	cd $(V8_DIR) && git reset --hard $(V8_REF)
 endif
 
 $(V8_LIB)/obj.target/tools/gyp/libv8_base.a: $(V8_DIR)
