@@ -61,7 +61,6 @@ void Report(Isolate* isolate, Handle<Value> response, uint8_t op) {
     Handle<Value> input;
 
     if (response->IsUndefined()) {
-        TRACE("undefined response?!%i\n", 3);
         input = String::NewFromUtf8(isolate, "undefined");
     } else {
         input = JSONStringify(isolate, response);
@@ -200,10 +199,13 @@ void* TimeoutHandler(void *arg) {
     TRACE("Timeout started: %i\n", 10);
     usleep(1000000);
     TRACE("After sleep: %i\n", 10);
+
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
+
     V8::TerminateExecution(args->isolate);
     TRACE("Isolate terminated: %i\n", 10);
+
     return NULL;
 }
 
@@ -230,8 +232,6 @@ void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
         assert(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
     } else {
-        TRACE("Thread starting: %i\n", 10);
-
         pthread_t t;
         struct TimeoutHandlerArgs args;
         void *res;
@@ -242,20 +242,11 @@ void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
         pthread_create(&t, NULL, TimeoutHandler, &args);
 
         Handle<Value> result = script->Run();
-        std::cerr << "IsExecutionTerminating " << V8::IsExecutionTerminating() << std::endl;
-        std::cerr << "TryCatch.Exception.IsEmpty() " << try_catch.Exception().IsEmpty() << std::endl;
-        std::cerr << "TryCatch.Message.IsEmpty() " << try_catch.Message().IsEmpty() << std::endl;
-        std::cerr << "TryCatch.StackTrace.IsEmpty() " << try_catch.StackTrace().IsEmpty() << std::endl;
 
         pthread_cancel(t);
         pthread_join(t, &res);
 
         std::cerr << "join" << res << std::endl;
-
-        // th.terminate();
-        // th.join();
-
-        TRACE("WERE OUT!%i\n", 10);
 
         if (result.IsEmpty()) {
             assert(try_catch.HasCaught());
@@ -269,7 +260,6 @@ void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
                 ReportException(isolate, &try_catch);
             }
         } else {
-            TRACE("ALL IS WELL%i\n", 10);
             ReportOK(isolate, result);
         }
     }
@@ -319,7 +309,6 @@ void Call(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
     Handle<Value> eval_result = script->Run();
 
     if (eval_result.IsEmpty()) {
-        TRACE("is empty?!%i\n", 3);
         assert(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
     } else {
