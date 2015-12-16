@@ -32,6 +32,11 @@ struct Packet {
     string data;
 };
 
+struct TimeoutHandlerArgs {
+    v8::Isolate *isolate;
+    long timeout;
+};
+
 Handle<Value> JSONStringify(Isolate* isolate, Handle<Value> obj);
 Handle<Value> WrapError(Isolate* isolate, Handle<Value> value);
 
@@ -185,27 +190,14 @@ Handle<Context> CreateContext(Isolate* isolate) {
     return v8::Context::New(isolate, NULL, g);
 }
 
-// void TimeoutHandler(Isolate* isolate) {
-//     TRACE("Thread started: %i\n", 10);
-//     usleep(10000000);
-//     TRACE("After sleep: %i\n", 10);
-//     V8::TerminateExecution(isolate);
-//     TRACE("Isolate terminated: %i\n", 10);
-// }
-
-typedef struct {
-    v8::Isolate *isolate;
-    long timeout;
-} timeout_data;
-
-void* TimeoutHandler(void *d) {
+void* TimeoutHandler(void *arguments) {
     TRACE("Thread started: %i\n", 10);
-    timeout_data* data = (timeout_data*)d;
+    struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arguments;
     usleep(1000000);
     TRACE("After sleep: %i\n", 10);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
-    V8::TerminateExecution(data->isolate);
+    V8::TerminateExecution(args->isolate);
     TRACE("Isolate terminated: %i\n", 10);
     return NULL;
 }
@@ -236,13 +228,13 @@ void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
         TRACE("Thread starting: %i\n", 10);
 
         pthread_t t;
-        timeout_data td;
+        struct TimeoutHandlerArgs args;
         void *res;
 
-        td.isolate = isolate;
-        td.timeout = (long)1;
+        args.isolate = isolate;
+        args.timeout = (long)1;
 
-        pthread_create(&t, NULL, TimeoutHandler, &td);
+        pthread_create(&t, NULL, TimeoutHandler, &args);
 
         Handle<Value> result = script->Run();
         std::cerr << "IsExecutionTerminating " << V8::IsExecutionTerminating() << std::endl;
@@ -376,7 +368,7 @@ bool CommandLoop(int scriptc, char* scriptv[]) {
                 // reset = true;
                 break;
         }
-        packet = (const struct Packet){ 0 };
+        packet = (const Packet){ 0 };
     }
     Isolate::GetCurrent()->ContextDisposedNotification(); 
     return reset;
