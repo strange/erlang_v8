@@ -26,7 +26,7 @@
 
 all() ->
     [
-        %% eval
+        eval,
         call
         %% return_type,
         %% nested_return_type,
@@ -56,8 +56,12 @@ end_per_suite(_Config) ->
 eval(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
-    {ok, 5} = erlang_v8:eval(P, <<"var a = 3; a + 2;">>),
+    {ok, Context} = erlang_v8_vm:create_context(P),
+
+    {ok, 2} = erlang_v8:eval(P, Context, <<"1 + 1">>),
+    {ok, 5} = erlang_v8:eval(P, Context, <<"var a = 3; a + 2;">>),
+
+    ok = erlang_v8_vm:destroy_context(P, Context),
 
     erlang_v8:stop_vm(P),
     ok.
@@ -68,40 +72,39 @@ call(_Config) ->
     {ok, Context} = erlang_v8_vm:create_context(P),
     
     %% sum fun
-    {error, timeout} = erlang_v8:eval(P, Context, <<"while(1) {};">>),
+    %% {error, timeout} = erlang_v8:eval(P, Context, <<"while(1) {};">>),
 
-    {ok, Context2} = erlang_v8_vm:create_context(P),
+    {ok, undefined} = erlang_v8:eval(P, Context,
+                                     <<"function sum(a, b) { return a + b; }">>),
+    {ok, 3} = erlang_v8:call(P, Context, <<"sum">>, [1, 2]),
 
-    {ok, undefined} = erlang_v8:eval(P, Context2, <<"function sum(a, b) { }">>),
-    %% {ok, 3} = erlang_v8:call(P, Context2, <<"sum">>, [1, 2]),
-    %% {ok, 4} = erlang_v8:call(P, Context2, <<"sum">>, [2, 2]),
-    %% {ok, <<"helloworld">>} =
-    %%     erlang_v8:call(P, Context2, <<"sum">>, [<<"hello">>, <<"world">>]),
+    {ok, 4} = erlang_v8:call(P, Context, <<"sum">>, [2, 2]),
+    {ok, <<"helloworld">>} =
+        erlang_v8:call(P, Context, <<"sum">>, [<<"hello">>, <<"world">>]),
 
-    %% %% a few arguments
-    %% {ok, undefined} =
-    %%     erlang_v8:eval(P, Context,
-    %%                    <<"function mul(a, b, c, d) { return a * b * c * d }">>),
-    %% {ok, 1} = erlang_v8:call(P, Context, <<"mul">>, [1, 1, 1, 1]),
-    %%
-    %% %% object arguments
-    %% {ok, undefined} =
-    %%     erlang_v8:eval(P, Context, <<"function get(o) { return o.a; }">>),
-    %% {ok, undefined} = erlang_v8:call(P, Context, <<"get">>, [2, 2]),
-    %% {ok, 1} = erlang_v8:call(P, Context, <<"get">>, [[{a, 1}]]),
-    %%
-    %% %% object fun
-    %% {ok, undefined} =
-    %%     erlang_v8:eval(P, Context, <<"var x = { y: function z() { return 1; } }">>),
-    %% {ok, 1} = erlang_v8:call(P, Context, <<"x.y">>, []),
-    %%
-    %% ok = erlang_v8_vm:destroy_context(P, Context),
-    %%
-    %% {ok, Context2} = erlang_v8_vm:create_context(P),
-    %% {ok, undefined} =
-    %%     erlang_v8:eval(P, Context2, <<"var x = { y: function z() { return 1; } }">>),
-    %% {ok, 1} = erlang_v8:call(P, Context2, <<"x.y">>, []),
-    %%
+    %% a few arguments
+    {ok, undefined} =
+        erlang_v8:eval(P, Context,
+                       <<"function mul(a, b, c, d) { return a * b * c * d }">>),
+    {ok, 1} = erlang_v8:call(P, Context, <<"mul">>, [1, 1, 1, 1]),
+
+    %% object arguments
+    {ok, undefined} =
+        erlang_v8:eval(P, Context, <<"function get(o) { return o.a; }">>),
+    {ok, undefined} = erlang_v8:call(P, Context, <<"get">>, [2, 2]),
+    {ok, 1} = erlang_v8:call(P, Context, <<"get">>, [[{a, 1}]]),
+
+    %% object fun
+    {ok, undefined} =
+        erlang_v8:eval(P, Context, <<"var x = { y: function z() { return 1; } }">>),
+    {ok, 1} = erlang_v8:call(P, Context, <<"x.y">>, []),
+
+    {ok, undefined} =
+        erlang_v8:eval(P, Context, <<"var x = { y: function z() { return 1; } }">>),
+    {ok, 1} = erlang_v8:call(P, Context, <<"x.y">>, []),
+
+    ok = erlang_v8_vm:destroy_context(P, Context),
+
     erlang_v8:stop_vm(P),
     ok.
 

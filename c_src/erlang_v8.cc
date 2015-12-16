@@ -50,6 +50,7 @@ void Report(Isolate* isolate, Handle<Value> response, uint8_t op) {
     Handle<Value> input;
 
     if (response->IsUndefined()) {
+        TRACE("undefined response?!%i\n", 3);
         input = String::NewFromUtf8(isolate, "undefined");
     } else {
         input = JSONStringify(isolate, response);
@@ -314,6 +315,7 @@ void Call(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
     Handle<Value> eval_result = script->Run();
 
     if (eval_result.IsEmpty()) {
+        TRACE("is empty?!%i\n", 3);
         assert(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
     } else {
