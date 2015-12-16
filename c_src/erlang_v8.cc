@@ -1,8 +1,9 @@
-#include <iostream>
-#include <sstream>
-#include <fstream>
 #include <assert.h>
+#include <fstream>
+#include <iostream>
 #include <map>
+#include <sstream>
+#include <string.h>
 #include <thread>
 #include <unistd.h>
 
@@ -35,6 +36,16 @@ struct Packet {
 struct TimeoutHandlerArgs {
     v8::Isolate *isolate;
     long timeout;
+};
+
+class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
+    public:
+        virtual void* Allocate(size_t length) {
+            void* data = AllocateUninitialized(length);
+            return data == NULL ? data : memset(data, 0, length);
+        }
+        virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+        virtual void Free(void* data, size_t) { free(data); }
 };
 
 Handle<Value> JSONStringify(Isolate* isolate, Handle<Value> obj);
@@ -377,7 +388,9 @@ int main(int argc, char* argv[]) {
     V8::Initialize();
     V8::SetFlagsFromCommandLine(&argc, argv, true);
 
+    ArrayBufferAllocator allocator;
     Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = &allocator;
     Isolate* isolate = Isolate::New(create_params);
     {
         v8::Isolate::Scope isolate_scope(isolate);
