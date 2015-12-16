@@ -190,9 +190,9 @@ Handle<Context> CreateContext(Isolate* isolate) {
     return v8::Context::New(isolate, NULL, g);
 }
 
-void* TimeoutHandler(void *arguments) {
+void* TimeoutHandler(void *arg) {
     TRACE("Thread started: %i\n", 10);
-    struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arguments;
+    struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
     usleep(1000000);
     TRACE("After sleep: %i\n", 10);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
