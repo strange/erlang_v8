@@ -84,21 +84,14 @@ void ReportError(Isolate* isolate, Handle<Value> response) {
 }
 
 void ReportException(Isolate* isolate, TryCatch* try_catch) {
-    TRACE("Here: %s\n", "1");
     HandleScope handle_scope(isolate);
-    TRACE("Here: %s\n", "2");
 
     Handle<Value> stack_trace = try_catch->StackTrace();
-    TRACE("Here: %s\n", "3");
 
     if (stack_trace.IsEmpty()) {
-    TRACE("Here: %s\n", "4");
         ReportError(isolate, try_catch->Exception());
-    TRACE("Here: %s\n", "5");
     } else {
-    TRACE("Here: %s\n", "6");
         const char* st = ToCString(String::Utf8Value(try_catch->StackTrace()));
-    TRACE("Here: %s\n", "7");
         TRACE("Stack: %s\n", st);
         ReportError(isolate, try_catch->StackTrace());
     }
@@ -192,8 +185,8 @@ Handle<Context> CreateContext(Isolate* isolate) {
 }
 
 void* TimeoutHandler(void *arg) {
-    TRACE("Thread started: %i\n", 10);
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
+    TRACE("Timeout started: %i\n", 10);
     usleep(1000000);
     TRACE("After sleep: %i\n", 10);
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
@@ -332,10 +325,9 @@ void Call(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
     }
 }
 
-bool CommandLoop(int scriptc, char* scriptv[]) {
+bool CommandLoop(Isolate* isolate, int scriptc, char* scriptv[]) {
     std::map<uint32_t,Handle<Context>> contexts;
 
-    Isolate* isolate = Isolate::New();
     HandleScope handle_scope(isolate);
 
     // Initializing scripts for every new (reset) request. This is a temporary
@@ -385,11 +377,12 @@ int main(int argc, char* argv[]) {
     V8::Initialize();
     V8::SetFlagsFromCommandLine(&argc, argv, true);
 
-    Isolate* isolate = Isolate::New();
+    Isolate::CreateParams create_params;
+    Isolate* isolate = Isolate::New(create_params);
     {
         v8::Isolate::Scope isolate_scope(isolate);
         v8::HandleScope handle_scope(isolate);
-        while (CommandLoop(argc, argv));
+        while (CommandLoop(isolate, argc, argv));
     }
 
     return 0;

@@ -10,6 +10,7 @@ BUILD_ARCH := $(BUILD_ARCH_$(ARCH))
 LIB_DIR := ../lib
 PRIV_DIR := ../priv
 
+DEPOT_REF := 473527c7ea56c3f6cab77edda767c4e6c097bd45
 DEPOT_DIR := $(LIB_DIR)/depot_tools
 
 V8_REF := 85ad564c10ede76446cfe50148c4432798a7014e
@@ -49,7 +50,7 @@ $(PRIV_DIR):
 $(DEPOT_DIR): $(LIB_DIR)
 ifeq ($(wildcard $(DEPOT_DIR)),)
 	cd $(LIB_DIR) && git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git;
-	cd $(DEPOT_DIR) && git reset --hard 473527c7ea56c3f6cab77edda767c4e6c097bd45
+	cd $(DEPOT_DIR) && git reset --hard $(DEPOT_REF)
 endif
 
 $(V8_DIR): $(LIB_DIR) $(DEPOT_DIR)
