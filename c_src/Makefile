@@ -49,6 +49,7 @@ $(PRIV_DIR):
 $(DEPOT_DIR): $(LIB_DIR)
 ifeq ($(wildcard $(DEPOT_DIR)),)
 	cd $(LIB_DIR) && git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git;
+	cd $(DEPOT_DIR) && git reset --hard 473527c7ea56c3f6cab77edda767c4e6c097bd45
 endif
 
 $(V8_DIR): $(LIB_DIR) $(DEPOT_DIR)

@@ -4,13 +4,13 @@
 -export([start_vm/1]).
 -export([stop_vm/1]).
 
--export([reset_vm/1]).
+-export([reset_vm/2]).
 -export([restart_vm/1]).
 
--export([eval/2]).
 -export([eval/3]).
--export([call/3]).
+-export([eval/4]).
 -export([call/4]).
+-export([call/5]).
 
 start_vm() ->
     start_vm([]).
@@ -21,20 +21,20 @@ start_vm(Opts) ->
 stop_vm(Pid) ->
     erlang_v8_vm:stop(Pid).
 
-reset_vm(Pid) ->
-    erlang_v8_vm:reset(Pid).
+reset_vm(Pid, Context) ->
+    erlang_v8_vm:reset(Pid, Context).
 
 restart_vm(Pid) ->
     erlang_v8_vm:restart(Pid).
 
-eval(Pid, Source) ->
-    erlang_v8_vm:eval(Pid, Source).
+eval(Pid, Context, Source) ->
+    erlang_v8_vm:eval(Pid, Context, Source).
 
-eval(Pid, Source, Timeout) ->
-    erlang_v8_vm:eval(Pid, Source, Timeout).
+eval(Pid, Context, Source, Timeout) ->
+    erlang_v8_vm:eval(Pid, Context, Source, Timeout).
 
-call(Pid, FunctionName, Args) ->
-    erlang_v8_vm:call(Pid, FunctionName, Args).
+call(Pid, Context, FunctionName, Args) ->
+    erlang_v8_vm:call(Pid, Context, FunctionName, Args).
 
-call(Pid, FunctionName, Args, Timeout) ->
-    erlang_v8_vm:call(Pid, FunctionName, Args, Timeout).
+call(Pid, Context, FunctionName, Args, Timeout) ->
+    erlang_v8_vm:call(Pid, Context, FunctionName, Args, Timeout).

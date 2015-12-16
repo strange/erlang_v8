@@ -5,14 +5,16 @@
 -export([start/0]).
 -export([start_link/1]).
 -export([stop/1]).
--export([reset/1]).
+-export([reset/2]).
 -export([restart/1]).
 -export([set/1]).
 
--export([eval/2]).
+-export([create_context/1]).
+-export([destroy_context/2]).
 -export([eval/3]).
--export([call/3]).
+-export([eval/4]).
 -export([call/4]).
+-export([call/5]).
 
 -export([init/1]).
 -export([handle_call/3]).
@@ -23,16 +25,17 @@
 
 -define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 4}, binary]).
--define(DEFAULT_TIMEOUT, 5000).
+-define(DEFAULT_TIMEOUT, 15000).
 -define(MAX_SOURCE_SIZE, 16#FFFFFFFF).
 
 -define(OP_EVAL, 1).
 -define(OP_CALL, 2).
 -define(OP_RESET, 3).
--define(OP_SET, 4).
+-define(OP_CREATE_CONTEXT, 4).
 
 -define(OP_OK, 0).
 -define(OP_ERROR, 1).
+-define(OP_TIMEOUT, 2).
 
 -record(state, {
         initial_source = [],
@@ -49,23 +52,30 @@ start_link(Opts) ->
 start() ->
     gen_server:start(?MODULE, [], []).
 
-eval(Pid, Source) ->
-    eval(Pid, Source, ?DEFAULT_TIMEOUT).
+create_context(Pid) ->
+    gen_server:call(Pid, {create_context, 1000}, 2000).
 
-eval(Pid, Source, Timeout) ->
-    gen_server:call(Pid, {eval, Source, Timeout}, Timeout + 1000).
+eval(Pid, Context, Source) ->
+    eval(Pid, Context, Source, ?DEFAULT_TIMEOUT).
 
-call(Pid, FunctionName, Args) ->
-    call(Pid, FunctionName, Args, ?DEFAULT_TIMEOUT).
+eval(Pid, Context, Source, Timeout) ->
+    gen_server:call(Pid, {eval, Context, Source, Timeout}, Timeout + 1000).
 
-call(Pid, FunctionName, Args, Timeout) ->
-    gen_server:call(Pid, {call, FunctionName, Args, Timeout}, Timeout + 1000).
+call(Pid, Context, FunctionName, Args) ->
+    call(Pid, Context, FunctionName, Args, ?DEFAULT_TIMEOUT).
+
+call(Pid, Context, FunctionName, Args, Timeout) ->
+    gen_server:call(Pid, {call, Context, FunctionName, Args, Timeout},
+                    Timeout + 1000).
 
 set(Pid) ->
     gen_server:call(Pid, set).
 
-reset(Pid) ->
-    gen_server:call(Pid, reset).
+destroy_context(Pid, Context) ->
+    reset(Pid, Context).
+
+reset(Pid, Context) ->
+    gen_server:call(Pid, {reset, Context}).
 
 restart(Pid) ->
     gen_server:call(Pid, restart).
@@ -77,26 +87,32 @@ stop(Pid) ->
 %% Callbacks
 
 init([Opts]) ->
+    random:seed(erlang:phash2([node()]),
+                erlang:monotonic_time(),
+                erlang:unique_integer()),
     State = start_port(parse_opts(Opts)),
     {ok, State}.
 
-handle_call({call, FunctionName, Args, Timeout}, _From,
+handle_call({call, Context, FunctionName, Args, Timeout}, _From,
             #state{port = Port, max_source_size = MaxSourceSize} = State) ->
-    Source = jsx:encode([{function, FunctionName}, {args, Args}]),
-    handle_response(send_to_port(Port, ?OP_CALL, Source, Timeout,
+    Instructions = #{ function => FunctionName, args => Args },
+    Source = jsx:encode(Instructions),
+    handle_response(send_to_port(Port, ?OP_CALL, Context, Source, Timeout,
                                  MaxSourceSize), State);
 
-handle_call({eval, Source, Timeout}, _From,
+handle_call({eval, Context, Source, Timeout}, _From,
             #state{port = Port, max_source_size = MaxSourceSize} = State) ->
-    handle_response(send_to_port(Port, ?OP_EVAL, Source, Timeout,
-                                 MaxSourceSize), State);
+    Instructions = jsx:encode(#{ source => Source }),
+    handle_response(send_to_port(Port, ?OP_EVAL, Context, Instructions,
+                                 Timeout, MaxSourceSize), State);
 
-handle_call(set, _From, #state{port = Port} = State) ->
-    Port ! {self(), {command, <<?OP_SET:8>>}},
-    {reply, ok, State};
+handle_call({create_context, _Timeout}, _From, #state{port = Port} = State) ->
+    Context = erlang:unique_integer([positive]),
+    Port ! {self(), {command, <<?OP_CREATE_CONTEXT:8, Context:32>>}},
+    {reply, {ok, Context}, State};
 
-handle_call(reset, _From, #state{port = Port} = State) ->
-    Port ! {self(), {command, <<?OP_RESET:8>>}},
+handle_call({reset, Context}, _From, #state{port = Port} = State) ->
+    Port ! {self(), {command, <<?OP_RESET:8, Context:32>>}},
     {reply, ok, State};
 
 handle_call(restart, _From, State) ->
@@ -177,19 +193,19 @@ os_kill(OSPid) ->
     os:cmd(io_lib:format("kill -9 ~p", [OSPid])).
 
 %% @doc Send source to port and wait for response
-send_to_port(_Port, _Op, Source, _Timeout, MaxSourceSize)
+send_to_port(_Port, _Op, _Ref, Source, _Timeout, MaxSourceSize)
   when size(Source) > MaxSourceSize ->
     {error, invalid_source_size};
-send_to_port(Port, Op, Source, Timeout, _MaxSourceSize) ->
-    Port ! {self(), {command, <<Op:8, Source/binary>>}},
+send_to_port(Port, Op, Ref, Source, Timeout, _MaxSourceSize) ->
+    Port ! {self(), {command, <<Op:8, Ref:32, Source/binary>>}},
     receive_port_data(Port, Timeout).
 
 receive_port_data(Port, Timeout) ->
     receive
-        {Port, {data, <<_:8, "">>}} ->
+        {Port, {data, <<_:8, _:32, "">>}} ->
             io:format("Received undefined~n", []),
             {ok, undefined};
-        {Port, {data, <<?OP_OK:8, Response/binary>>}} ->
+        {Port, {data, <<?OP_OK:8, _:32, Response/binary>>}} ->
             io:format("Received data: ~p~n", [Response]),
             case catch jsx:decode(Response) of 
                 {'EXIT', _F} ->
@@ -199,10 +215,14 @@ receive_port_data(Port, Timeout) ->
                 R ->
                     {ok, R}
             end;
-        {Port, {data, <<?OP_ERROR:8, Response/binary>>}} ->
+        {Port, {data, <<?OP_ERROR:8, _:32, Response/binary>>}} ->
             io:format("Received error: ~p~n", [Response]),
             [{<<"error">>, Reason}] = jsx:decode(Response),
             {error, Reason};
+        {Port, {data, <<?OP_TIMEOUT:8, _:32, Response/binary>>}} ->
+            io:format("Received timeout: ~p~n", [Response]),
+            %% [{<<"error">>, timeout}] = jsx:decode(Response),
+            {error, timeout};
         {Port, Error} ->
             io:format("Received port error: ~p~n", [Error]),
             %% TODO: we should probably special case here.
