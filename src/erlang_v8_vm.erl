@@ -143,6 +143,8 @@ handle_response({ok, Response}, State) ->
     {reply, {ok, Response}, State};
 handle_response({error, invalid_source_size} = Error, State) ->
     {reply, Error, State};
+handle_response({call_error, Reason}, State) ->
+    {reply, {error, Reason}, State};
 handle_response({error, _Reason} = Error, State) ->
     {reply, Error, start_port(kill_port(State))}.
 
@@ -218,11 +220,11 @@ receive_port_data(Port, Timeout) ->
         {Port, {data, <<?OP_ERROR:8, _:32, Response/binary>>}} ->
             io:format("Received error: ~p~n", [Response]),
             [{<<"error">>, Reason}] = jsx:decode(Response),
-            {error, Reason};
+            {call_error, Reason};
         {Port, {data, <<?OP_TIMEOUT:8, _:32, Response/binary>>}} ->
             io:format("Received timeout: ~p~n", [Response]),
             %% [{<<"error">>, timeout}] = jsx:decode(Response),
-            {error, timeout};
+            {call_error, timeout};
         {Port, Error} ->
             io:format("Received port error: ~p~n", [Error]),
             %% TODO: we should probably special case here.

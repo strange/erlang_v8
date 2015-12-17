@@ -27,6 +27,31 @@ const uint8_t OP_CALL = 2;
 const uint8_t OP_DESTROY_CONTEXT = 3;
 const uint8_t OP_CREATE_CONTEXT = 4;
 
+class VM {
+    private:
+        std::map<uint32_t,Handle<Context>> contexts;
+        Isolate* isolate;
+
+    public:
+        VM(Isolate* main_isolate) {
+            isolate = main_isolate;
+        }
+
+        Handle<Context> GetContext(uint32_t ref) {
+            return contexts[ref];
+        }
+
+        bool CreateContext(uint32_t ref) {
+            Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
+            contexts[ref] = Context::New(isolate, NULL, global);
+            return true;
+        }
+
+        int Size() {
+            TRACE("Context size: %i\n", contexts.size());
+        }
+};
+
 struct Packet {
     uint8_t op;
     uint32_t ref;
@@ -95,10 +120,7 @@ void ReportError(Isolate* isolate, Handle<Value> response) {
 }
 
 void ReportException(Isolate* isolate, TryCatch* try_catch) {
-    std::cerr << "HERE" << std::endl;
     HandleScope handle_scope(isolate);
-
-    std::cerr << "HERE" << std::endl;
     Handle<Value> stack_trace = try_catch->StackTrace();
 
     if (stack_trace.IsEmpty()) {
@@ -215,14 +237,17 @@ void* TimeoutHandler(void *arg) {
 }
 
 
-void Eval(Platform* platform, Isolate* isolate,
-        std::map<uint32_t,Handle<Context>> &contexts, Packet* packet) {
+void Eval(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
     HandleScope handle_scope(isolate);
     TryCatch try_catch(isolate);
 
     string input = packet->data;
 
-    Handle<Context> context = contexts[packet->ref];
+    cerr << "VM: " << &vm << endl;
+
+    vm.Size();
+
+    Handle<Context> context = vm.GetContext(packet->ref);
     Context::Scope context_scope(context);
 
     Handle<String> json_data = String::NewFromUtf8(isolate, input.c_str());
@@ -230,6 +255,9 @@ void Eval(Platform* platform, Isolate* isolate,
 
     Local<String> source_key = String::NewFromUtf8(isolate, "source");
     Local<String> source = instructions->Get(source_key)->ToString();
+
+    String::Utf8Value lolsrc(source);
+    std::cerr << "Script: " << ToCString(lolsrc) << std::endl;
 
     Handle<Script> script = Script::Compile(source);
 
@@ -249,41 +277,41 @@ void Eval(Platform* platform, Isolate* isolate,
 
         Handle<Value> result = script->Run();
 
+        String::Utf8Value lolsrc(source);
+        std::cerr << "Script: " << ToCString(lolsrc) << std::endl;
+        String::Utf8Value err(try_catch.Exception()); 
+        std::cerr << "Exception: " << ToCString(err) << std::endl;
+
         pthread_cancel(t);
         pthread_join(t, &res);
 
         std::cerr << "Join: " << res << std::endl;
 
         if (result.IsEmpty()) {
-            std::cerr << "HERE1" << std::endl;
             assert(try_catch.HasCaught());
-            std::cerr << "HERE2" << std::endl;
             if (try_catch.Message().IsEmpty() && try_catch.StackTrace().IsEmpty()) {
                 TRACE("It's a timeout! 1%i\n", 10);
                 Handle<String> tt = String::NewFromUtf8(isolate, "timeout");
-                contexts.erase(packet->ref);
                 Report(isolate, tt, OP_TIMEOUT);
             } else {
                 TRACE("It's a regular error. 1%i\n", 10);
                 ReportException(isolate, &try_catch);
             }
             TRACE("Replacing context: %i\n", packet->ref);
-            contexts.erase(packet->ref);
-            contexts[packet->ref] = CreateContext(isolate);
+            vm.CreateContext(packet->ref);
         } else {
             ReportOK(isolate, result);
         }
     }
 }
 
-void Call(Platform* platform, Isolate* isolate,
-        std::map<uint32_t,Handle<Context>> &contexts, Packet* packet) {
+void Call(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
     HandleScope handle_scope(isolate);
     TryCatch try_catch(isolate);
 
     string input = packet->data;
 
-    Handle<Context> context = contexts[packet->ref];
+    Handle<Context> context = vm.GetContext(packet->ref);
     Context::Scope context_scope(context);
 
     Handle<String> json_data = String::NewFromUtf8(isolate, input.c_str());
@@ -336,9 +364,8 @@ void Call(Platform* platform, Isolate* isolate,
     }
 }
 
-bool CommandLoop(Platform* platform, Isolate* isolate,
+bool CommandLoop(VM& vm, Platform* platform, Isolate* isolate,
         int scriptc, char* scriptv[]) {
-    std::map<uint32_t,Handle<Context>> contexts;
 
     HandleScope handle_scope(isolate);
 
@@ -354,23 +381,25 @@ bool CommandLoop(Platform* platform, Isolate* isolate,
     bool reset = false;
     Packet packet;
     while (!reset && NextPacket(&packet)) {
+        cerr << "VM: " << &vm << endl;
+        vm.Size();
+
         switch(packet.op) {
             case OP_EVAL:
                 TRACE("Eval in context: %i\n", packet.ref);
-                Eval(platform, isolate, contexts, &packet);
+                Eval(vm, platform, isolate, &packet);
                 break;
             case OP_CALL:
                 TRACE("Call in context: %i\n", packet.ref);
                 fflush(stderr);
-                Call(platform, isolate, contexts, &packet);
+                Call(vm, platform, isolate, &packet);
                 break;
             case OP_CREATE_CONTEXT:
                 TRACE("Creating context: %i\n", packet.ref);
-                contexts[packet.ref] = CreateContext(isolate);
+                vm.CreateContext(packet.ref);
                 break;
             case OP_DESTROY_CONTEXT:
                 TRACE("Destroying context: %i\n", packet.ref);
-                contexts.erase(packet.ref);
                 // reset = true;
                 break;
         }
@@ -395,10 +424,14 @@ int main(int argc, char* argv[]) {
     Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = &allocator;
     Isolate* isolate = Isolate::New(create_params);
+
+    VM vm(isolate);
+    cerr << "Initial VM: " << &vm << endl;
+
     {
         v8::Isolate::Scope isolate_scope(isolate);
         v8::HandleScope handle_scope(isolate);
-        while (CommandLoop(platform, isolate, argc, argv));
+        while (CommandLoop(vm, platform, isolate, argc, argv));
     }
 
     isolate->Dispose();

@@ -156,7 +156,6 @@ errors(_Config) ->
     {ok, Context} = erlang_v8_vm:create_context(P),
 
     {error, <<"exception">>} = erlang_v8:eval(P, Context, <<"throw 'exception';">>),
-    
     {error, <<"ReferenceError: i_do_not_exist is not defined", _/binary>>} =
         erlang_v8:eval(P, Context, <<"i_do_not_exist();">>),
 
