@@ -305,14 +305,19 @@ multiple_vms(_Config) ->
 
 big_input(_Config) ->
     {ok, VM} = erlang_v8:start_vm([{max_source_size, 1000}]),
-    {ok, undefined} = erlang_v8:eval(VM, <<"function call(arg) {
+
+    {ok, Context} = erlang_v8_vm:create_context(VM),
+
+    {ok, undefined} = erlang_v8:eval(VM, Context, <<"function call(arg) {
         return arg;
     }">>),
 
-    {error, invalid_source_size} = erlang_v8:call(VM, <<"call">>,
+    {error, invalid_source_size} = erlang_v8:call(VM, Context, <<"call">>,
                                                   [random_bytes(1000)]),
 
-    {ok, _} = erlang_v8:call(VM, <<"call">>, [random_bytes(500)]),
+    {ok, _} = erlang_v8:call(VM, Context, <<"call">>, [random_bytes(500)]),
+
+    ok = erlang_v8_vm:destroy_context(VM, Context),
 
     ok = erlang_v8:stop_vm(VM),
     ok.
