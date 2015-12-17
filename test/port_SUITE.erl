@@ -33,7 +33,7 @@ all() ->
         nested_return_type,
         errors,
         timeout,
-        contexts
+        contexts,
         %% reset
         %% restart,
         %% single_source,
@@ -41,8 +41,8 @@ all() ->
         %% file_source,
         %% multiple_eval_with_reset,
         %% multiple_vms,
-        %% big_input,
-        %% escaped_control_characters
+        big_input,
+        escaped_control_characters
     ].
 
 init_per_suite(Config) ->
@@ -324,11 +324,16 @@ big_input(_Config) ->
 
 escaped_control_characters(_Config) ->
     {ok, VM} = erlang_v8:start_vm(),
-    {ok, undefined} = erlang_v8:eval(VM, <<"function call(arg) {
+    {ok, Context} = erlang_v8_vm:create_context(VM),
+
+    {ok, undefined} = erlang_v8:eval(VM, Context, <<"function call(arg) {
         return arg;
     }">>),
     Bytes = <<"\ntestar\nfestar\n">>,
-    {ok, <<"\ntestar\nfestar\n">>} = erlang_v8:call(VM, <<"call">>, [Bytes]),
+    {ok, <<"\ntestar\nfestar\n">>} = erlang_v8:call(VM, Context, <<"call">>,
+                                                    [Bytes]),
+
+    ok = erlang_v8_vm:destroy_context(VM, Context),
     ok = erlang_v8:stop_vm(VM),
     ok.
 
