@@ -35,7 +35,7 @@ void VM::PumpMessageLoop() {
 
 void VM::TerminateExecution() {
     V8::TerminateExecution(isolate);
-    TRACE("Isolate terminated: %i\n", 10);
+    FTRACE("Isolate terminated: %i\n", 10);
 }
 
 bool VM::CreateContext(uint32_t ref) {
@@ -60,5 +60,6 @@ bool VM::DestroyContext(uint32_t ref) {
 }
 
 int VM::Size() {
-    TRACE("Context size: %i\n", contexts.size());
+    FTRACE("Context size: %i\n", contexts.size());
+    contexts.size();
 }

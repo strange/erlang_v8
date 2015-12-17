@@ -73,7 +73,7 @@ void ReportException(Isolate* isolate, TryCatch* try_catch) {
         ReportError(isolate, try_catch->Exception());
     } else {
         const char* st = ToCString(String::Utf8Value(try_catch->StackTrace()));
-        TRACE("Stack: %s\n", st);
+        FTRACE("Stack: %s\n", st);
         ReportError(isolate, try_catch->StackTrace());
     }
 }
@@ -162,9 +162,9 @@ bool NextPacket(Packet* packet) {
 
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
-    TRACE("Timeout started: %i\n", 10);
+    TRACE("Timeout started.\n");
     usleep(10000000);
-    TRACE("After sleep: %i\n", 10);
+    TRACE("After sleep,\n");
 
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
@@ -225,14 +225,14 @@ void Eval(VM vm, Packet* packet) {
         if (result.IsEmpty()) {
             assert(try_catch.HasCaught());
             if (try_catch.Message().IsEmpty() && try_catch.StackTrace().IsEmpty()) {
-                TRACE("It's a timeout! 1%i\n", 10);
+                TRACE("It's a timeout!\n");
                 Handle<String> tt = String::NewFromUtf8(isolate, "timeout");
                 Report(isolate, tt, OP_TIMEOUT);
             } else {
-                TRACE("It's a regular error. 1%i\n", 10);
+                TRACE("It's a regular error\n");
                 ReportException(isolate, &try_catch);
             }
-            TRACE("Replacing context: %i\n", packet->ref);
+            FTRACE("Replacing context: %i\n", packet->ref);
             vm.CreateContext(packet->ref);
         } else {
             ReportOK(isolate, result);
@@ -310,24 +310,24 @@ bool CommandLoop(VM& vm) {
 
         switch(packet.op) {
             case OP_EVAL:
-                TRACE("Eval in context: %i\n", packet.ref);
+                FTRACE("Eval in context: %i\n", packet.ref);
                 Eval(vm, &packet);
                 break;
             case OP_CALL:
-                TRACE("Call in context: %i\n", packet.ref);
+                FTRACE("Call in context: %i\n", packet.ref);
                 fflush(stderr);
                 Call(vm, &packet);
                 break;
             case OP_CREATE_CONTEXT:
-                TRACE("Creating context: %i\n", packet.ref);
+                FTRACE("Creating context: %i\n", packet.ref);
                 vm.CreateContext(packet.ref);
                 break;
             case OP_DESTROY_CONTEXT:
-                TRACE("Destroying context: %i\n", packet.ref);
+                FTRACE("Destroying context: %i\n", packet.ref);
                 vm.DestroyContext(packet.ref);
                 break;
             case OP_RESET_VM:
-                TRACE("Ignoring reset", packet.ref);
+                FTRACE("Ignoring reset", packet.ref);
                 // reset = true;
                 break;
         }
