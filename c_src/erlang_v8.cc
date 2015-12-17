@@ -34,7 +34,8 @@ struct Packet {
 };
 
 struct TimeoutHandlerArgs {
-    v8::Isolate *isolate;
+    Platform *platform;
+    Isolate *isolate;
     long timeout;
 };
 
@@ -94,8 +95,10 @@ void ReportError(Isolate* isolate, Handle<Value> response) {
 }
 
 void ReportException(Isolate* isolate, TryCatch* try_catch) {
+    std::cerr << "HERE" << std::endl;
     HandleScope handle_scope(isolate);
 
+    std::cerr << "HERE" << std::endl;
     Handle<Value> stack_trace = try_catch->StackTrace();
 
     if (stack_trace.IsEmpty()) {
@@ -190,14 +193,14 @@ bool NextPacket(Packet* packet) {
 }
 
 Handle<Context> CreateContext(Isolate* isolate) {
-    v8::Handle<v8::ObjectTemplate> g = v8::ObjectTemplate::New(isolate);
-    return v8::Context::New(isolate, NULL, g);
+    Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
+    return Context::New(isolate, NULL, global);
 }
 
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
     TRACE("Timeout started: %i\n", 10);
-    usleep(1000000);
+    usleep(10000000);
     TRACE("After sleep: %i\n", 10);
 
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
@@ -206,12 +209,14 @@ void* TimeoutHandler(void *arg) {
     V8::TerminateExecution(args->isolate);
     TRACE("Isolate terminated: %i\n", 10);
 
+    while (platform::PumpMessageLoop(args->platform, args->isolate)) continue;
+
     return NULL;
 }
 
 
-void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
-        Packet* packet) {
+void Eval(Platform* platform, Isolate* isolate,
+        std::map<uint32_t,Handle<Context>> &contexts, Packet* packet) {
     HandleScope handle_scope(isolate);
     TryCatch try_catch(isolate);
 
@@ -236,6 +241,7 @@ void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
         struct TimeoutHandlerArgs args;
         void *res;
 
+        args.platform = platform;
         args.isolate = isolate;
         args.timeout = (long)1;
 
@@ -246,10 +252,12 @@ void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
         pthread_cancel(t);
         pthread_join(t, &res);
 
-        std::cerr << "join" << res << std::endl;
+        std::cerr << "Join: " << res << std::endl;
 
         if (result.IsEmpty()) {
+            std::cerr << "HERE1" << std::endl;
             assert(try_catch.HasCaught());
+            std::cerr << "HERE2" << std::endl;
             if (try_catch.Message().IsEmpty() && try_catch.StackTrace().IsEmpty()) {
                 TRACE("It's a timeout! 1%i\n", 10);
                 Handle<String> tt = String::NewFromUtf8(isolate, "timeout");
@@ -259,14 +267,17 @@ void Eval(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
                 TRACE("It's a regular error. 1%i\n", 10);
                 ReportException(isolate, &try_catch);
             }
+            TRACE("Replacing context: %i\n", packet->ref);
+            contexts.erase(packet->ref);
+            contexts[packet->ref] = CreateContext(isolate);
         } else {
             ReportOK(isolate, result);
         }
     }
 }
 
-void Call(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
-        Packet* packet) {
+void Call(Platform* platform, Isolate* isolate,
+        std::map<uint32_t,Handle<Context>> &contexts, Packet* packet) {
     HandleScope handle_scope(isolate);
     TryCatch try_catch(isolate);
 
@@ -325,7 +336,8 @@ void Call(Isolate* isolate, std::map<uint32_t,Handle<Context>> &contexts,
     }
 }
 
-bool CommandLoop(Isolate* isolate, int scriptc, char* scriptv[]) {
+bool CommandLoop(Platform* platform, Isolate* isolate,
+        int scriptc, char* scriptv[]) {
     std::map<uint32_t,Handle<Context>> contexts;
 
     HandleScope handle_scope(isolate);
@@ -345,12 +357,12 @@ bool CommandLoop(Isolate* isolate, int scriptc, char* scriptv[]) {
         switch(packet.op) {
             case OP_EVAL:
                 TRACE("Eval in context: %i\n", packet.ref);
-                Eval(isolate, contexts, &packet);
+                Eval(platform, isolate, contexts, &packet);
                 break;
             case OP_CALL:
                 TRACE("Call in context: %i\n", packet.ref);
                 fflush(stderr);
-                Call(isolate, contexts, &packet);
+                Call(platform, isolate, contexts, &packet);
                 break;
             case OP_CREATE_CONTEXT:
                 TRACE("Creating context: %i\n", packet.ref);
@@ -362,6 +374,7 @@ bool CommandLoop(Isolate* isolate, int scriptc, char* scriptv[]) {
                 // reset = true;
                 break;
         }
+        while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
         packet = (const Packet){ 0 };
     }
     Isolate::GetCurrent()->ContextDisposedNotification(); 
@@ -373,6 +386,7 @@ int main(int argc, char* argv[]) {
 
     V8::InitializeICU();
     Platform* platform = v8::platform::CreateDefaultPlatform();
+
     V8::InitializePlatform(platform);
     V8::Initialize();
     V8::SetFlagsFromCommandLine(&argc, argv, true);
@@ -384,8 +398,13 @@ int main(int argc, char* argv[]) {
     {
         v8::Isolate::Scope isolate_scope(isolate);
         v8::HandleScope handle_scope(isolate);
-        while (CommandLoop(isolate, argc, argv));
+        while (CommandLoop(platform, isolate, argc, argv));
     }
+
+    isolate->Dispose();
+    V8::Dispose();
+    V8::ShutdownPlatform();
+    delete platform;
 
     return 0;
 }

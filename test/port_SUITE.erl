@@ -27,10 +27,10 @@
 all() ->
     [
         eval,
-        call
-        %% return_type,
-        %% nested_return_type,
-        %% errors,
+        call,
+        return_type,
+        nested_return_type,
+        errors
         %% timeout,
         %% reset,
         %% restart,
@@ -111,12 +111,16 @@ call(_Config) ->
 return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {ok, 1} = erlang_v8:eval(P, <<"1">>),
-    {ok, [{<<"a">>, 1}]} = erlang_v8:eval(P, <<"var x = { a: 1 }; x">>),
-    {ok, [1]} = erlang_v8:eval(P, <<"[1]">>),
-    {ok, true} = erlang_v8:eval(P, <<"true">>),
-    {ok, null} = erlang_v8:eval(P, <<"null">>),
-    {ok, 1.1} = erlang_v8:eval(P, <<"1.1">>),
+    {ok, Context} = erlang_v8_vm:create_context(P),
+
+    {ok, 1} = erlang_v8:eval(P, Context, <<"1">>),
+    {ok, [{<<"a">>, 1}]} = erlang_v8:eval(P, Context, <<"x = { a: 1 }; x">>),
+    {ok, [1]} = erlang_v8:eval(P, Context, <<"[1]">>),
+    {ok, true} = erlang_v8:eval(P, Context, <<"true">>),
+    {ok, null} = erlang_v8:eval(P, Context, <<"null">>),
+    {ok, 1.1} = erlang_v8:eval(P, Context, <<"1.1">>),
+
+    ok = erlang_v8_vm:destroy_context(P, Context),
 
     erlang_v8:stop_vm(P),
     ok.
@@ -124,11 +128,13 @@ return_type(_Config) ->
 nested_return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
+    {ok, Context} = erlang_v8_vm:create_context(P),
+
     {ok, [
            {<<"val">>, 1},
            {<<"list">>, [1, 2, 3]},
            {<<"obj">>, [{<<"val">>, 1}]}
-    ]} = erlang_v8:eval(P, <<"
+    ]} = erlang_v8:eval(P, Context, <<"
     var x = {
         val: 1,
         list: [1, 2, 3],
@@ -139,16 +145,22 @@ nested_return_type(_Config) ->
     x
     ">>),
 
+    ok = erlang_v8_vm:destroy_context(P, Context),
+
     erlang_v8:stop_vm(P),
     ok.
  
 errors(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {error, <<"exception">>} = erlang_v8:eval(P, <<"throw 'exception';">>),
+    {ok, Context} = erlang_v8_vm:create_context(P),
+
+    {error, <<"exception">>} = erlang_v8:eval(P, Context, <<"throw 'exception';">>),
     
     {error, <<"ReferenceError: i_do_not_exist is not defined", _/binary>>} =
-        erlang_v8:eval(P, <<"i_do_not_exist();">>),
+        erlang_v8:eval(P, Context, <<"i_do_not_exist();">>),
+
+    ok = erlang_v8_vm:destroy_context(P, Context),
 
     erlang_v8:stop_vm(P),
     ok.
