@@ -45,11 +45,20 @@ class VM {
 
         Isolate* GetIsolate() {
             return isolate;
-        };
+        }
 
         Platform* GetPlatform() {
             return platform;
-        };
+        }
+
+        void PumpMessageLoop() {
+            while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
+        }
+
+        void TerminateExecution() {
+            V8::TerminateExecution(isolate);
+            TRACE("Isolate terminated: %i\n", 10);
+        }
 
         bool CreateContext(uint32_t ref) {
             Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
@@ -74,8 +83,9 @@ struct Packet {
 };
 
 struct TimeoutHandlerArgs {
-    Platform *platform;
-    Isolate *isolate;
+    Platform* platform;
+    Isolate* isolate;
+    VM& vm;
     long timeout;
 };
 
@@ -229,11 +239,6 @@ bool NextPacket(Packet* packet) {
     return true;
 }
 
-Handle<Context> CreateContext(Isolate* isolate) {
-    Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
-    return Context::New(isolate, NULL, global);
-}
-
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
     TRACE("Timeout started: %i\n", 10);
@@ -243,10 +248,8 @@ void* TimeoutHandler(void *arg) {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
 
-    V8::TerminateExecution(args->isolate);
-    TRACE("Isolate terminated: %i\n", 10);
-
-    while (platform::PumpMessageLoop(args->platform, args->isolate)) continue;
+    args->vm.TerminateExecution();
+    args->vm.PumpMessageLoop();
 
     return NULL;
 }
@@ -283,12 +286,13 @@ void Eval(VM vm, Packet* packet) {
         ReportException(isolate, &try_catch);
     } else {
         pthread_t t;
-        struct TimeoutHandlerArgs args;
         void *res;
-
-        args.platform = vm.GetPlatform();
-        args.isolate = isolate;
-        args.timeout = (long)1;
+        struct TimeoutHandlerArgs args = {
+            vm.GetPlatform(),
+            isolate,
+            vm,
+            (long)1
+        };
 
         pthread_create(&t, NULL, TimeoutHandler, &args);
 
