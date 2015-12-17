@@ -1,3 +1,6 @@
+#ifndef ERLANG_V8_VM_H
+#define ERLANG_V8_VM_H
+
 #include <map>
 #include <vector>
 
@@ -23,3 +26,5 @@ class VM {
 
         int Size();
 };
+
+#endif

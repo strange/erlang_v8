@@ -1,39 +1,17 @@
 #include <assert.h>
-#include <iostream>
 #include <string.h>
 #include <unistd.h>
+#include <iostream>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
+#include "erlang_v8.h"
 #include "debug.h"
 #include "vm.h"
 
 using namespace v8;
 using namespace std;
-
-const uint8_t OP_OK = 0;
-const uint8_t OP_ERROR = 1;
-const uint8_t OP_TIMEOUT = 2;
-
-const uint8_t OP_EVAL = 1;
-const uint8_t OP_CALL = 2;
-const uint8_t OP_CREATE_CONTEXT = 3;
-const uint8_t OP_DESTROY_CONTEXT = 4;
-const uint8_t OP_RESET_VM = 5;
-
-struct Packet {
-    uint8_t op;
-    uint32_t ref;
-    string data;
-};
-
-struct TimeoutHandlerArgs {
-    Platform* platform;
-    Isolate* isolate;
-    VM& vm;
-    long timeout;
-};
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     public:
@@ -44,9 +22,6 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
         virtual void Free(void* data, size_t) { free(data); }
 };
-
-Handle<Value> JSONStringify(Isolate* isolate, Handle<Value> obj);
-Handle<Value> WrapError(Isolate* isolate, Handle<Value> value);
 
 const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<string conversion failed>";
