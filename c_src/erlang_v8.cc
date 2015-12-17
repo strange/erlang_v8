@@ -195,9 +195,6 @@ void Eval(VM vm, Packet* packet) {
     Local<String> source_key = String::NewFromUtf8(isolate, "source");
     Local<String> source = instructions->Get(source_key)->ToString();
 
-    String::Utf8Value lolsrc(source);
-    std::cerr << "Script: " << ToCString(lolsrc) << std::endl;
-
     Handle<Script> script = Script::Compile(source);
 
     if (script.IsEmpty()) {
@@ -220,7 +217,7 @@ void Eval(VM vm, Packet* packet) {
         pthread_cancel(t);
         pthread_join(t, &res);
 
-        std::cerr << "Join: " << res << std::endl;
+        FTRACE("Join: %x\n", res);
 
         if (result.IsEmpty()) {
             assert(try_catch.HasCaught());
@@ -327,7 +324,7 @@ bool CommandLoop(VM& vm) {
                 vm.DestroyContext(packet.ref);
                 break;
             case OP_RESET_VM:
-                FTRACE("Ignoring reset", packet.ref);
+                FTRACE("Ignoring reset: %i\n", packet.ref);
                 // reset = true;
                 break;
         }
@@ -354,8 +351,7 @@ int main(int argc, char* argv[]) {
     Isolate* isolate = Isolate::New(create_params);
 
     VM vm(platform, isolate, argc, argv);
-    cerr << "Initial VM: " << &vm << endl;
-
+    FTRACE("Initial VM: %x\n", &vm);
     {
         Isolate::Scope isolate_scope(isolate);
         while (CommandLoop(vm));

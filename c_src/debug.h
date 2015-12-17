@@ -2,6 +2,7 @@
 #define DEBUG_H
 
 #define DEBUG 1
+
 #define FTRACE(fmt, ...) \
     do { if (DEBUG) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
             __LINE__, __func__, __VA_ARGS__); } while (0)

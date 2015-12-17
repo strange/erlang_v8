@@ -11,9 +11,10 @@
     {ok, Value} = call(Context, Fun, Args).
     ok = destroy_context(Context).
 
-1. Timeouts
+1. Send timeouts to os proc
 2. Report invalid contexts
 3. Collect "dead" contexts
+4. Create base-context pre-initialized with code from erlang
 
 # `erlang_v8`
 
