@@ -18,7 +18,7 @@ V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 
 TARGET_BIN := $(PRIV_DIR)/erlang_v8
-TARGET_SRC := erlang_v8.cc
+TARGET_SRC := vm.cc erlang_v8.cc 
 
 GYPFLAGS := -Dv8_use_external_startup_data=0
 

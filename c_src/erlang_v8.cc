@@ -1,20 +1,13 @@
 #include <assert.h>
-#include <fstream>
 #include <iostream>
-#include <map>
-#include <sstream>
 #include <string.h>
-#include <thread>
-#include <vector>
 #include <unistd.h>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 
-#define DEBUG 1
-#define TRACE(fmt, ...) \
-    do { if (DEBUG) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
-            __LINE__, __func__, __VA_ARGS__); } while (0)
+#include "debug.h"
+#include "vm.h"
 
 using namespace v8;
 using namespace std;
@@ -28,68 +21,6 @@ const uint8_t OP_CALL = 2;
 const uint8_t OP_CREATE_CONTEXT = 3;
 const uint8_t OP_DESTROY_CONTEXT = 4;
 const uint8_t OP_RESET_VM = 5;
-
-class VM {
-private:
-    Isolate* isolate;
-    Platform* platform;
-    map<uint32_t,Handle<Context>> contexts;
-    vector<string> scripts;
-
-public:
-    VM(Platform* platform_, Isolate* isolate_, int scriptc, char* scriptv[]) {
-        isolate = isolate_;
-        platform = platform_;
-
-        scripts = vector<string>(scriptv + 1, scriptv + scriptc);
-    }
-
-    Handle<Context> GetContext(uint32_t ref) {
-        return contexts[ref];
-    }
-
-    Isolate* GetIsolate() {
-        return isolate;
-    }
-
-    Platform* GetPlatform() {
-        return platform;
-    }
-
-    void PumpMessageLoop() {
-        while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
-    }
-
-    void TerminateExecution() {
-        V8::TerminateExecution(isolate);
-        TRACE("Isolate terminated: %i\n", 10);
-    }
-
-    bool CreateContext(uint32_t ref) {
-        Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
-        Handle<Context> context = Context::New(isolate, NULL, global);
-        Context::Scope context_scope(context);
-        // Initializing scripts for every new context. This is a
-        // temporary solution.
-        for (auto script : scripts) {
-            Handle<String> source = String::NewFromUtf8(isolate,
-                    script.c_str());
-            Handle<Script> compiled = Script::Compile(source);
-            Handle<Value> result = compiled->Run();
-        }
-        contexts[ref] = context;
-        return true;
-    }
-
-    bool DestroyContext(uint32_t ref) {
-        contexts.erase(ref);
-        return true;
-    }
-
-    int Size() {
-        TRACE("Context size: %i\n", contexts.size());
-    }
-};
 
 struct Packet {
     uint8_t op;
@@ -278,8 +209,6 @@ void Eval(VM vm, Packet* packet) {
 
     string input = packet->data;
 
-    cerr << "VM: " << &vm << endl;
-
     vm.Size();
 
     Handle<Context> context = vm.GetContext(packet->ref);
@@ -312,11 +241,6 @@ void Eval(VM vm, Packet* packet) {
         pthread_create(&t, NULL, TimeoutHandler, &args);
 
         Handle<Value> result = script->Run();
-
-        String::Utf8Value lolsrc(source);
-        std::cerr << "Script: " << ToCString(lolsrc) << std::endl;
-        String::Utf8Value err(try_catch.Exception()); 
-        std::cerr << "Exception: " << ToCString(err) << std::endl;
 
         pthread_cancel(t);
         pthread_join(t, &res);
@@ -407,7 +331,6 @@ bool CommandLoop(VM& vm) {
     bool reset = false;
     Packet packet;
     while (!reset && NextPacket(&packet)) {
-        cerr << "VM: " << &vm << endl;
         vm.Size();
 
         switch(packet.op) {
