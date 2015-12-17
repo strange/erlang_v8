@@ -433,7 +433,7 @@ bool CommandLoop(VM& vm) {
                 // reset = true;
                 break;
         }
-        while (v8::platform::PumpMessageLoop(vm.GetPlatform(), vm.GetIsolate())) continue;
+        vm.PumpMessageLoop();
         packet = (const Packet){ 0 };
     }
     Isolate::GetCurrent()->ContextDisposedNotification(); 
