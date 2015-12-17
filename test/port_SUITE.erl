@@ -12,6 +12,7 @@
 -export([nested_return_type/1]).
 -export([errors/1]).
 -export([timeout/1]).
+-export([contexts/1]).
 -export([reset/1]).
 -export([restart/1]).
 -export([single_source/1]).
@@ -30,9 +31,10 @@ all() ->
         call,
         return_type,
         nested_return_type,
-        errors
-        %% timeout,
-        %% reset,
+        errors,
+        timeout,
+        contexts
+        %% reset
         %% restart,
         %% single_source,
         %% multi_source,
@@ -167,9 +169,29 @@ errors(_Config) ->
 timeout(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {error, timeout} = erlang_v8:eval(P, <<"while (true) {}">>, 1),
+    {ok, Context} = erlang_v8_vm:create_context(P),
+
+    {error, timeout} = erlang_v8:eval(P, Context, <<"while (true) {}">>, 1),
+
+    ok = erlang_v8_vm:destroy_context(P, Context),
 
     erlang_v8:stop_vm(P),
+    ok.
+
+contexts(_Config) ->
+    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
+
+    {ok, Context1} = erlang_v8_vm:create_context(P),
+    {ok, Context2} = erlang_v8_vm:create_context(P),
+
+    {ok, <<"yes">>} = erlang_v8:eval(P, Context1, <<"erlang_v8">>),
+
+    {ok, <<"no">>} = erlang_v8:eval(P, Context1, <<"erlang_v8 = 'no';">>),
+    {ok, <<"no">>} = erlang_v8:eval(P, Context1, <<"erlang_v8">>),
+    {ok, <<"yes">>} = erlang_v8:eval(P, Context2, <<"erlang_v8">>),
+
+    erlang_v8:stop_vm(P),
+
     ok.
 
 reset(_Config) ->

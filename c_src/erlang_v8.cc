@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string.h>
 #include <thread>
+#include <vector>
 #include <unistd.h>
 
 #include "include/libplatform/libplatform.h"
@@ -24,56 +25,70 @@ const uint8_t OP_TIMEOUT = 2;
 
 const uint8_t OP_EVAL = 1;
 const uint8_t OP_CALL = 2;
-const uint8_t OP_DESTROY_CONTEXT = 3;
-const uint8_t OP_CREATE_CONTEXT = 4;
+const uint8_t OP_CREATE_CONTEXT = 3;
+const uint8_t OP_DESTROY_CONTEXT = 4;
+const uint8_t OP_RESET_VM = 5;
 
 class VM {
-    private:
-        Isolate* isolate;
-        Platform* platform;
-        std::map<uint32_t,Handle<Context>> contexts;
+private:
+    Isolate* isolate;
+    Platform* platform;
+    map<uint32_t,Handle<Context>> contexts;
+    vector<string> scripts;
 
-    public:
-        VM(Platform* platform_, Isolate* isolate_) {
-            isolate = isolate_;
-            platform = platform_;
-        }
+public:
+    VM(Platform* platform_, Isolate* isolate_, int scriptc, char* scriptv[]) {
+        isolate = isolate_;
+        platform = platform_;
 
-        Handle<Context> GetContext(uint32_t ref) {
-            return contexts[ref];
-        }
+        scripts = vector<string>(scriptv + 1, scriptv + scriptc);
+    }
 
-        Isolate* GetIsolate() {
-            return isolate;
-        }
+    Handle<Context> GetContext(uint32_t ref) {
+        return contexts[ref];
+    }
 
-        Platform* GetPlatform() {
-            return platform;
-        }
+    Isolate* GetIsolate() {
+        return isolate;
+    }
 
-        void PumpMessageLoop() {
-            while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
-        }
+    Platform* GetPlatform() {
+        return platform;
+    }
 
-        void TerminateExecution() {
-            V8::TerminateExecution(isolate);
-            TRACE("Isolate terminated: %i\n", 10);
-        }
+    void PumpMessageLoop() {
+        while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
+    }
 
-        bool CreateContext(uint32_t ref) {
-            Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
-            contexts[ref] = Context::New(isolate, NULL, global);
-            return true;
-        }
+    void TerminateExecution() {
+        V8::TerminateExecution(isolate);
+        TRACE("Isolate terminated: %i\n", 10);
+    }
 
-        bool DestroyContext(uint32_t ref) {
-            contexts.erase(ref);
-            return true;
+    bool CreateContext(uint32_t ref) {
+        Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
+        Handle<Context> context = Context::New(isolate, NULL, global);
+        Context::Scope context_scope(context);
+        // Initializing scripts for every new context. This is a
+        // temporary solution.
+        for (auto script : scripts) {
+            Handle<String> source = String::NewFromUtf8(isolate,
+                    script.c_str());
+            Handle<Script> compiled = Script::Compile(source);
+            Handle<Value> result = compiled->Run();
         }
+        contexts[ref] = context;
+        return true;
+    }
 
-        int Size() {
-            TRACE("Context size: %i\n", contexts.size());
-        }
+    bool DestroyContext(uint32_t ref) {
+        contexts.erase(ref);
+        return true;
+    }
+
+    int Size() {
+        TRACE("Context size: %i\n", contexts.size());
+    }
 };
 
 struct Packet {
@@ -386,18 +401,8 @@ void Call(VM vm, Packet* packet) {
     }
 }
 
-bool CommandLoop(VM& vm, int scriptc, char* scriptv[]) {
+bool CommandLoop(VM& vm) {
     HandleScope handle_scope(vm.GetIsolate());
-
-    // Initializing scripts for every new (reset) request. This is a temporary
-    // solution.
-    for (int i = 1; i < scriptc; i++) {
-        // we need to catch errors here and inform the user.
-        Handle<String> source = String::NewFromUtf8(vm.GetIsolate(),
-                scriptv[i]);
-        Handle<Script> script = Script::Compile(source);
-        Handle<Value> result = script->Run();
-    }
 
     bool reset = false;
     Packet packet;
@@ -422,6 +427,9 @@ bool CommandLoop(VM& vm, int scriptc, char* scriptv[]) {
             case OP_DESTROY_CONTEXT:
                 TRACE("Destroying context: %i\n", packet.ref);
                 vm.DestroyContext(packet.ref);
+                break;
+            case OP_RESET_VM:
+                TRACE("Ignoring reset", packet.ref);
                 // reset = true;
                 break;
         }
@@ -447,12 +455,12 @@ int main(int argc, char* argv[]) {
     create_params.array_buffer_allocator = &allocator;
     Isolate* isolate = Isolate::New(create_params);
 
-    VM vm(platform, isolate);
+    VM vm(platform, isolate, argc, argv);
     cerr << "Initial VM: " << &vm << endl;
 
     {
         Isolate::Scope isolate_scope(isolate);
-        while (CommandLoop(vm, argc, argv));
+        while (CommandLoop(vm));
     }
 
     isolate->Dispose();

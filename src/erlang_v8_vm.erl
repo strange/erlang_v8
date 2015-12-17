@@ -5,9 +5,9 @@
 -export([start/0]).
 -export([start_link/1]).
 -export([stop/1]).
--export([reset/2]).
+
+-export([reset/1]).
 -export([restart/1]).
--export([set/1]).
 
 -export([create_context/1]).
 -export([destroy_context/2]).
@@ -30,8 +30,9 @@
 
 -define(OP_EVAL, 1).
 -define(OP_CALL, 2).
--define(OP_RESET, 3).
--define(OP_CREATE_CONTEXT, 4).
+-define(OP_CREATE_CONTEXT, 3).
+-define(OP_DESTROY_CONTEXT, 4).
+-define(OP_RESET_VM, 5).
 
 -define(OP_OK, 0).
 -define(OP_ERROR, 1).
@@ -68,14 +69,11 @@ call(Pid, Context, FunctionName, Args, Timeout) ->
     gen_server:call(Pid, {call, Context, FunctionName, Args, Timeout},
                     Timeout + 1000).
 
-set(Pid) ->
-    gen_server:call(Pid, set).
-
 destroy_context(Pid, Context) ->
-    reset(Pid, Context).
+    gen_server:call(Pid, {destroy_context, Context}).
 
-reset(Pid, Context) ->
-    gen_server:call(Pid, {reset, Context}).
+reset(Pid) ->
+    gen_server:call(Pid, reset).
 
 restart(Pid) ->
     gen_server:call(Pid, restart).
@@ -111,8 +109,12 @@ handle_call({create_context, _Timeout}, _From, #state{port = Port} = State) ->
     Port ! {self(), {command, <<?OP_CREATE_CONTEXT:8, Context:32>>}},
     {reply, {ok, Context}, State};
 
-handle_call({reset, Context}, _From, #state{port = Port} = State) ->
-    Port ! {self(), {command, <<?OP_RESET:8, Context:32>>}},
+handle_call({destroy_context, Context}, _From, #state{port = Port} = State) ->
+    Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32>>}},
+    {reply, ok, State};
+
+handle_call(reset, _From, #state{port = Port} = State) ->
+    Port ! {self(), {command, <<?OP_RESET_VM:8>>}},
     {reply, ok, State};
 
 handle_call(restart, _From, State) ->
