@@ -29,21 +29,36 @@ const uint8_t OP_CREATE_CONTEXT = 4;
 
 class VM {
     private:
-        std::map<uint32_t,Handle<Context>> contexts;
         Isolate* isolate;
+        Platform* platform;
+        std::map<uint32_t,Handle<Context>> contexts;
 
     public:
-        VM(Isolate* main_isolate) {
-            isolate = main_isolate;
+        VM(Platform* platform_, Isolate* isolate_) {
+            isolate = isolate_;
+            platform = platform_;
         }
 
         Handle<Context> GetContext(uint32_t ref) {
             return contexts[ref];
         }
 
+        Isolate* GetIsolate() {
+            return isolate;
+        };
+
+        Platform* GetPlatform() {
+            return platform;
+        };
+
         bool CreateContext(uint32_t ref) {
             Handle<v8::ObjectTemplate> global = ObjectTemplate::New(isolate);
             contexts[ref] = Context::New(isolate, NULL, global);
+            return true;
+        }
+
+        bool DestroyContext(uint32_t ref) {
+            contexts.erase(ref);
             return true;
         }
 
@@ -237,7 +252,9 @@ void* TimeoutHandler(void *arg) {
 }
 
 
-void Eval(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
+void Eval(VM vm, Packet* packet) {
+    Isolate* isolate = vm.GetIsolate();
+
     HandleScope handle_scope(isolate);
     TryCatch try_catch(isolate);
 
@@ -269,7 +286,7 @@ void Eval(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
         struct TimeoutHandlerArgs args;
         void *res;
 
-        args.platform = platform;
+        args.platform = vm.GetPlatform();
         args.isolate = isolate;
         args.timeout = (long)1;
 
@@ -305,7 +322,9 @@ void Eval(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
     }
 }
 
-void Call(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
+void Call(VM vm, Packet* packet) {
+    Isolate* isolate = vm.GetIsolate();
+
     HandleScope handle_scope(isolate);
     TryCatch try_catch(isolate);
 
@@ -317,7 +336,6 @@ void Call(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
     Handle<String> json_data = String::NewFromUtf8(isolate, input.c_str());
     Local<Object> instructions = JSON::Parse(json_data)->ToObject();
 
-    // Handle<Context> context = isolate->GetCurrentContext();
     Handle<Object> global = context->Global();
 
     Local<String> function_key = String::NewFromUtf8(isolate, "function");
@@ -364,16 +382,15 @@ void Call(VM vm, Platform* platform, Isolate* isolate, Packet* packet) {
     }
 }
 
-bool CommandLoop(VM& vm, Platform* platform, Isolate* isolate,
-        int scriptc, char* scriptv[]) {
-
-    HandleScope handle_scope(isolate);
+bool CommandLoop(VM& vm, int scriptc, char* scriptv[]) {
+    HandleScope handle_scope(vm.GetIsolate());
 
     // Initializing scripts for every new (reset) request. This is a temporary
     // solution.
     for (int i = 1; i < scriptc; i++) {
         // we need to catch errors here and inform the user.
-        Handle<String> source = String::NewFromUtf8(isolate, scriptv[i]);
+        Handle<String> source = String::NewFromUtf8(vm.GetIsolate(),
+                scriptv[i]);
         Handle<Script> script = Script::Compile(source);
         Handle<Value> result = script->Run();
     }
@@ -387,12 +404,12 @@ bool CommandLoop(VM& vm, Platform* platform, Isolate* isolate,
         switch(packet.op) {
             case OP_EVAL:
                 TRACE("Eval in context: %i\n", packet.ref);
-                Eval(vm, platform, isolate, &packet);
+                Eval(vm, &packet);
                 break;
             case OP_CALL:
                 TRACE("Call in context: %i\n", packet.ref);
                 fflush(stderr);
-                Call(vm, platform, isolate, &packet);
+                Call(vm, &packet);
                 break;
             case OP_CREATE_CONTEXT:
                 TRACE("Creating context: %i\n", packet.ref);
@@ -400,10 +417,11 @@ bool CommandLoop(VM& vm, Platform* platform, Isolate* isolate,
                 break;
             case OP_DESTROY_CONTEXT:
                 TRACE("Destroying context: %i\n", packet.ref);
+                vm.DestroyContext(packet.ref);
                 // reset = true;
                 break;
         }
-        while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
+        while (v8::platform::PumpMessageLoop(vm.GetPlatform(), vm.GetIsolate())) continue;
         packet = (const Packet){ 0 };
     }
     Isolate::GetCurrent()->ContextDisposedNotification(); 
@@ -425,13 +443,12 @@ int main(int argc, char* argv[]) {
     create_params.array_buffer_allocator = &allocator;
     Isolate* isolate = Isolate::New(create_params);
 
-    VM vm(isolate);
+    VM vm(platform, isolate);
     cerr << "Initial VM: " << &vm << endl;
 
     {
-        v8::Isolate::Scope isolate_scope(isolate);
-        v8::HandleScope handle_scope(isolate);
-        while (CommandLoop(vm, platform, isolate, argc, argv));
+        Isolate::Scope isolate_scope(isolate);
+        while (CommandLoop(vm, argc, argv));
     }
 
     isolate->Dispose();
