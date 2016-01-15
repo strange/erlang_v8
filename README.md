@@ -16,6 +16,8 @@
 3. Collect "dead" contexts
 4. Create base-context pre-initialized with code from erlang
 
+Requires libtinfo.
+
 # `erlang_v8`
 
 Run JavaScript from Erlang in an external OS process.
