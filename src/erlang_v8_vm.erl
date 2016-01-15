@@ -207,10 +207,8 @@ send_to_port(Port, Op, Ref, Source, Timeout, _MaxSourceSize) ->
 receive_port_data(Port, Timeout) ->
     receive
         {Port, {data, <<_:8, _:32, "">>}} ->
-            io:format("Received undefined~n", []),
             {ok, undefined};
         {Port, {data, <<?OP_OK:8, _:32, Response/binary>>}} ->
-            io:format("Received data: ~p~n", [Response]),
             case catch jsx:decode(Response) of 
                 {'EXIT', _F} ->
                     %% exit(Response);
@@ -220,15 +218,12 @@ receive_port_data(Port, Timeout) ->
                     {ok, R}
             end;
         {Port, {data, <<?OP_ERROR:8, _:32, Response/binary>>}} ->
-            io:format("Received error: ~p~n", [Response]),
             [{<<"error">>, Reason}] = jsx:decode(Response),
             {call_error, Reason};
-        {Port, {data, <<?OP_TIMEOUT:8, _:32, Response/binary>>}} ->
-            io:format("Received timeout: ~p~n", [Response]),
+        {Port, {data, <<?OP_TIMEOUT:8, _:32, _Response/binary>>}} ->
             %% [{<<"error">>, timeout}] = jsx:decode(Response),
             {call_error, timeout};
         {Port, Error} ->
-            io:format("Received port error: ~p~n", [Error]),
             %% TODO: we should probably special case here.
             {error, Error}
         after Timeout ->
