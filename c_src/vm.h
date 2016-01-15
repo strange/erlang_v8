@@ -12,7 +12,8 @@ class VM {
         std::vector<std::string> scripts;
 
     public:
-        VM(v8::Platform* platform_, v8::Isolate* isolate_, int scriptc, char* scriptv[]); 
+        VM(v8::Platform* platform_, v8::Isolate* isolate_, int scriptc,
+                char* scriptv[]); 
 
         v8::Handle<v8::Context> GetContext(uint32_t ref);
         v8::Isolate* GetIsolate();

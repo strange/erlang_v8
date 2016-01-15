@@ -21,6 +21,7 @@
 -export([multiple_eval_with_reset/1]).
 -export([multiple_vms/1]).
 -export([big_input/1]).
+-export([performance/1]).
 -export([escaped_control_characters/1]).
 
 %% Callbacks
@@ -29,11 +30,11 @@ all() ->
     [
         eval,
         call,
-        return_type,
-        nested_return_type,
-        errors,
-        timeout,
-        contexts,
+        return_type
+        %% nested_return_type,
+        %% errors,
+        %% timeout,
+        %% contexts,
         %% reset
         %% restart,
         %% single_source,
@@ -41,8 +42,9 @@ all() ->
         %% file_source,
         %% multiple_eval_with_reset,
         %% multiple_vms,
-        big_input,
-        escaped_control_characters
+        %% performance,
+        %% big_input,
+        %% escaped_control_characters
     ].
 
 init_per_suite(Config) ->
@@ -76,8 +78,7 @@ call(_Config) ->
     %% sum fun
     %% {error, timeout} = erlang_v8:eval(P, Context, <<"while(1) {};">>),
 
-    {ok, undefined} = erlang_v8:eval(P, Context,
-                                     <<"function sum(a, b) { return a + b; }">>),
+    {ok, undefined} = erlang_v8:eval(P, Context, <<"function sum(a, b) { return a + b; }">>),
     {ok, 3} = erlang_v8:call(P, Context, <<"sum">>, [1, 2]),
 
     {ok, 4} = erlang_v8:call(P, Context, <<"sum">>, [2, 2]),
@@ -86,8 +87,7 @@ call(_Config) ->
 
     %% a few arguments
     {ok, undefined} =
-        erlang_v8:eval(P, Context,
-                       <<"function mul(a, b, c, d) { return a * b * c * d }">>),
+        erlang_v8:eval(P, Context, <<"function mul(a, b, c, d) { return a * b * c * d }">>),
     {ok, 1} = erlang_v8:call(P, Context, <<"mul">>, [1, 1, 1, 1]),
 
     %% object arguments
@@ -112,7 +112,6 @@ call(_Config) ->
 
 return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
-
     {ok, Context} = erlang_v8_vm:create_context(P),
 
     {ok, 1} = erlang_v8:eval(P, Context, <<"1">>),
@@ -123,7 +122,6 @@ return_type(_Config) ->
     {ok, 1.1} = erlang_v8:eval(P, Context, <<"1.1">>),
 
     ok = erlang_v8_vm:destroy_context(P, Context),
-
     erlang_v8:stop_vm(P),
     ok.
 
@@ -335,6 +333,20 @@ escaped_control_characters(_Config) ->
 
     ok = erlang_v8_vm:destroy_context(VM, Context),
     ok = erlang_v8:stop_vm(VM),
+    ok.
+
+performance(_Config) ->
+    {ok, P} = erlang_v8:start_vm(),
+
+    {ok, Context} = erlang_v8_vm:create_context(P),
+    {ok, undefined} = erlang_v8:eval(P, Context, <<"function retval(i) { return i; }">>),
+
+    [{ok, I} = erlang_v8:call(P, Context, <<"retval">>, [I]) ||
+     I <- lists:seq(0, 999)],
+
+    ok = erlang_v8_vm:destroy_context(P, Context),
+
+    erlang_v8:stop_vm(P),
     ok.
 
 %% Helpers
