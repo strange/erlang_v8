@@ -209,19 +209,16 @@ receive_port_data(Port, Timeout) ->
         {Port, {data, <<_:8, _:32, "">>}} ->
             {ok, undefined};
         {Port, {data, <<?OP_OK:8, _:32, Response/binary>>}} ->
-            case catch jsx:decode(Response) of 
+            case catch jsx:decode(Response, [return_maps]) of 
                 {'EXIT', _F} ->
-                    %% exit(Response);
-                    %% receive_port_data(Port, Timeout);
                     {ok, undefined};
                 R ->
                     {ok, R}
             end;
         {Port, {data, <<?OP_ERROR:8, _:32, Response/binary>>}} ->
-            [{<<"error">>, Reason}] = jsx:decode(Response),
+            #{ <<"error">> := Reason } = jsx:decode(Response, [return_maps]),
             {call_error, Reason};
         {Port, {data, <<?OP_TIMEOUT:8, _:32, _Response/binary>>}} ->
-            %% [{<<"error">>, timeout}] = jsx:decode(Response),
             {call_error, timeout};
         {Port, Error} ->
             %% TODO: we should probably special case here.

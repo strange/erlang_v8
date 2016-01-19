@@ -115,7 +115,7 @@ return_type(_Config) ->
     {ok, Context} = erlang_v8_vm:create_context(P),
 
     {ok, 1} = erlang_v8:eval(P, Context, <<"1">>),
-    {ok, [{<<"a">>, 1}]} = erlang_v8:eval(P, Context, <<"x = { a: 1 }; x">>),
+    {ok, #{ <<"a">> := 1 }} = erlang_v8:eval(P, Context, <<"x = { a: 1 }; x">>),
     {ok, [1]} = erlang_v8:eval(P, Context, <<"[1]">>),
     {ok, true} = erlang_v8:eval(P, Context, <<"true">>),
     {ok, null} = erlang_v8:eval(P, Context, <<"null">>),
