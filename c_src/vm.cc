@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <map>
 #include <vector>
+#include <unistd.h>
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
@@ -12,6 +13,28 @@
 
 using namespace v8;
 using namespace std;
+
+
+struct TimeoutHandlerArgs {
+    VM* vm;
+    long timeout;
+};
+
+
+void* TimeoutHandler(void *arg) {
+    struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
+    TRACE("Timeout started.\n");
+    usleep(1000000);
+    TRACE("After sleep,\n");
+
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
+
+    args->vm->TerminateExecution();
+    args->vm->PumpMessageLoop();
+
+    return NULL;
+}
 
 VM::VM(Platform* platform_, Isolate* isolate_, int scriptc, char* scriptv[]) {
     isolate = isolate_;
@@ -27,24 +50,17 @@ bool VM::CreateContext(uint32_t ref) {
     Local<Context> context = Context::New(isolate, NULL, global);
 
     Persistent<Context, CopyablePersistentTraits<Context>> pcontext(isolate, context);
-    // Persistent<Context> pcontext;
-    // lol.Reset(isolate, context);
 
-    // FTRACE("Addr1 %x\n", &gcontext);
-    // gcontext.Reset(isolate, context);
-    // FTRACE("Addr2 %x\n", &gcontext);
-
-    // Context::Scope context_scope(context);
+    Context::Scope context_scope(context);
 
     // Initializing scripts for every new context. This is a
     // temporary solution.
-    // for (auto script : scripts) {
-    //     Handle<String> source = String::NewFromUtf8(isolate,
-    //             script.c_str());
-    //     Handle<Script> compiled = Script::Compile(source);
-    //     Handle<Value> result = compiled->Run();
-    // }
-
+    for (auto script : scripts) {
+        Handle<String> source = String::NewFromUtf8(isolate,
+                script.c_str());
+        Handle<Script> compiled = Script::Compile(source);
+        Handle<Value> result = compiled->Run();
+    }
 
     contexts[ref] = pcontext;
     return true;
@@ -57,18 +73,9 @@ bool VM::DestroyContext(uint32_t ref) {
     return true;
 }
 
-
-// LocalContext* VM::GetContext(uint32_t ref) {
-//     return contexts[ref];
-// }
-
 Isolate* VM::GetIsolate() {
     return isolate;
 }
-
-// Platform* VM::GetPlatform() {
-//     return platform;
-// }
 
 void VM::PumpMessageLoop() {
     while (v8::platform::PumpMessageLoop(platform, isolate)) continue;
@@ -105,23 +112,21 @@ void VM::Eval(Packet* packet) {
         assert(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
     } else {
-        // pthread_t t;
-        // void *res;
-        // struct TimeoutHandlerArgs args = {
-        //     platform,
-        //     isolate,
-        //     vm,
-        //     (long)1
-        // };
+        pthread_t t;
+        void *res;
+        struct TimeoutHandlerArgs args = {
+            this,
+            (long)1
+        };
 
-        // pthread_create(&t, NULL, TimeoutHandler, &args);
+        pthread_create(&t, NULL, TimeoutHandler, &args);
 
         Handle<Value> result = script->Run();
 
-        // pthread_cancel(t);
-        // pthread_join(t, &res);
+        pthread_cancel(t);
+        pthread_join(t, &res);
 
-        // FTRACE("Join: %x\n", res);
+        FTRACE("Join: %x\n", res);
 
         if (result.IsEmpty()) {
             assert(try_catch.HasCaught());

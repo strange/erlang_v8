@@ -30,14 +30,14 @@ all() ->
     [
         eval,
         call,
-        return_type
+        return_type,
         %% nested_return_type,
         %% errors,
-        %% timeout,
+        timeout,
         %% contexts,
         %% reset
         %% restart,
-        %% single_source,
+        single_source
         %% multi_source,
         %% file_source,
         %% multiple_eval_with_reset,
@@ -75,9 +75,6 @@ call(_Config) ->
 
     {ok, Context} = erlang_v8_vm:create_context(P),
     
-    %% sum fun
-    %% {error, timeout} = erlang_v8:eval(P, Context, <<"while(1) {};">>),
-
     {ok, undefined} = erlang_v8:eval(P, Context, <<"function sum(a, b) { return a + b; }">>),
     {ok, 3} = erlang_v8:call(P, Context, <<"sum">>, [1, 2]),
 
@@ -169,7 +166,7 @@ timeout(_Config) ->
 
     {ok, Context} = erlang_v8_vm:create_context(P),
 
-    {error, timeout} = erlang_v8:eval(P, Context, <<"while (true) {}">>, 1),
+    {error, timeout} = erlang_v8:eval(P, Context, <<"while (true) {}">>, 10000),
 
     ok = erlang_v8_vm:destroy_context(P, Context),
 
@@ -247,15 +244,13 @@ restart(_Config) ->
     ok.
 
 single_source(_Config) ->
-    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-    erlang_v8:reset_vm(P),
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-    {ok, 3} = erlang_v8:eval(P, <<"lol = 3;">>),
-    {ok, 3} = erlang_v8:eval(P, <<"lol">>),
-    erlang_v8:reset_vm(P),
-    {error, <<"ReferenceError: lol is not defined", _/binary>>} = erlang_v8:eval(P, <<"lol">>),
-    erlang_v8:stop_vm(P),
+    {ok, VM} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
+    {ok, Context} = erlang_v8_vm:create_context(VM),
+
+    {ok, <<"yes">>} = erlang_v8:eval(VM, Context, <<"erlang_v8">>),
+
+    erlang_v8_vm:destroy_context(VM, Context),
+    erlang_v8:stop_vm(VM),
     ok.
 
 multi_source(_Config) ->

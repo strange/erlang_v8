@@ -204,7 +204,7 @@ send_to_port(Port, Op, Ref, Source, Timeout, _MaxSourceSize) ->
     Port ! {self(), {command, <<Op:8, Ref:32, Source/binary>>}},
     receive_port_data(Port, Timeout).
 
-receive_port_data(Port, Timeout) ->
+receive_port_data(Port, _Timeout) ->
     receive
         {Port, {data, <<_:8, _:32, "">>}} ->
             {ok, undefined};
@@ -223,8 +223,8 @@ receive_port_data(Port, Timeout) ->
         {Port, Error} ->
             %% TODO: we should probably special case here.
             {error, Error}
-        after Timeout ->
-            {error, timeout}
+        %% after Timeout ->
+        %%     {error, timeout}
     end.
 
 %% @doc Return the path to the application's priv dir (assuming directory

@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <string.h>
-#include <unistd.h>
 #include <iostream>
 
 #include "include/libplatform/libplatform.h"
@@ -73,22 +72,6 @@ bool NextPacket(Packet* packet) {
 
     return true;
 }
-
-void* TimeoutHandler(void *arg) {
-    struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
-    TRACE("Timeout started.\n");
-    usleep(10000000);
-    TRACE("After sleep,\n");
-
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
-    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
-
-    // args->vm.TerminateExecution();
-    // args->vm.PumpMessageLoop();
-
-    return NULL;
-}
-
 
 bool CommandLoop(VM& vm) {
     HandleScope handle_scope(vm.GetIsolate());
