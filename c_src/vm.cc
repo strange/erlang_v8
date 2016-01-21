@@ -56,10 +56,10 @@ bool VM::CreateContext(uint32_t ref) {
     // Initializing scripts for every new context. This is a
     // temporary solution.
     for (auto script : scripts) {
-        Handle<String> source = String::NewFromUtf8(isolate,
+        Local<String> source = String::NewFromUtf8(isolate,
                 script.c_str());
-        Handle<Script> compiled = Script::Compile(source);
-        Handle<Value> result = compiled->Run();
+        Local<Script> compiled = Script::Compile(source);
+        Local<Value> result = compiled->Run();
     }
 
     contexts[ref] = pcontext;
@@ -100,13 +100,13 @@ void VM::Eval(Packet* packet) {
 
     string input = packet->data;
 
-    Handle<String> json_data = String::NewFromUtf8(isolate, input.c_str());
+    Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
     Local<Object> instructions = JSON::Parse(json_data)->ToObject();
 
     Local<String> source_key = String::NewFromUtf8(isolate, "source");
     Local<String> source = instructions->Get(source_key)->ToString();
 
-    Handle<Script> script = Script::Compile(source);
+    Local<Script> script = Script::Compile(source);
 
     if (script.IsEmpty()) {
         assert(try_catch.HasCaught());
@@ -121,7 +121,7 @@ void VM::Eval(Packet* packet) {
 
         pthread_create(&t, NULL, TimeoutHandler, &args);
 
-        Handle<Value> result = script->Run();
+        Local<Value> result = script->Run();
 
         pthread_cancel(t);
         pthread_join(t, &res);
@@ -132,7 +132,7 @@ void VM::Eval(Packet* packet) {
             assert(try_catch.HasCaught());
             if (try_catch.Message().IsEmpty() && try_catch.StackTrace().IsEmpty()) {
                 TRACE("It's a timeout!\n");
-                Handle<String> tt = String::NewFromUtf8(isolate, "timeout");
+                Local<String> tt = String::NewFromUtf8(isolate, "timeout");
                 Report(isolate, tt, OP_TIMEOUT);
             } else {
                 TRACE("It's a regular error\n");
@@ -156,10 +156,10 @@ void VM::Call(Packet* packet) {
 
     Context::Scope context_scope(context);
 
-    Handle<String> json_data = String::NewFromUtf8(isolate, input.c_str());
+    Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
     Local<Object> instructions = JSON::Parse(json_data)->ToObject();
 
-    Handle<Object> global = context->Global();
+    Local<Object> global = context->Global();
 
     Local<String> function_key = String::NewFromUtf8(isolate, "function");
     Local<String> function_name = instructions->Get(function_key)->ToString();
@@ -169,7 +169,7 @@ void VM::Call(Packet* packet) {
     Local<Array> raw_args = Local<Array>::Cast(args_value);
 
     int len = raw_args->Length();
-    Handle<Value> *args = new Handle<Value>[len];
+    Local<Value> *args = new Local<Value>[len];
 
     for (int i = 0; i < len; i++) { 
         args[i] = raw_args->Get(i);
@@ -179,22 +179,22 @@ void VM::Call(Packet* packet) {
     // name can be something like `lol.flop['hi']`. wrapping the call in a
     // temporary function is much simpler than attempting to split the name
     // and check all the individual parts.
-    Handle<String> prefix = String::NewFromUtf8(isolate,
+    Local<String> prefix = String::NewFromUtf8(isolate,
             "function __call() { return ");
-    Handle<String> suffix = String::NewFromUtf8(isolate,
+    Local<String> suffix = String::NewFromUtf8(isolate,
             ".apply(null, arguments); }");
-    Handle<String> source = String::Concat(String::Concat(prefix,
+    Local<String> source = String::Concat(String::Concat(prefix,
                 function_name), suffix);
-    Handle<Script> script = Script::Compile(source);
-    Handle<Value> eval_result = script->Run();
+    Local<Script> script = Script::Compile(source);
+    Local<Value> eval_result = script->Run();
 
     if (eval_result.IsEmpty()) {
         assert(try_catch.HasCaught());
         ReportException(isolate, &try_catch);
     } else {
         Local<String> fn = String::NewFromUtf8(isolate, "__call");
-        Handle<Function> function = Handle<Function>::Cast(global->Get(fn));
-        Handle<Value> result = function->Call(global, len, args);
+        Local<Function> function = Local<Function>::Cast(global->Get(fn));
+        Local<Value> result = function->Call(global, len, args);
 
         if (result.IsEmpty()) {
             assert(try_catch.HasCaught());

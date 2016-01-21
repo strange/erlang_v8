@@ -17,10 +17,10 @@ const char* ToCString(const v8::String::Utf8Value& value) {
   return *value ? *value : "<string conversion failed>";
 }
 
-void Report(Isolate* isolate, Handle<Value> response, uint8_t op) {
+void Report(Isolate* isolate, Local<Value> response, uint8_t op) {
     uint32_t ref = 0;
 
-    Handle<Value> input;
+    Local<Value> input;
 
     TRACE("REPORTING STUFF.");
 
@@ -50,17 +50,17 @@ void Report(Isolate* isolate, Handle<Value> response, uint8_t op) {
     cout.flush();
 }
 
-void ReportOK(Isolate* isolate, Handle<Value> response) {
+void ReportOK(Isolate* isolate, Local<Value> response) {
     Report(isolate, response, OP_OK);
 }
 
-void ReportError(Isolate* isolate, Handle<Value> response) {
+void ReportError(Isolate* isolate, Local<Value> response) {
     Report(isolate, WrapError(isolate, response), OP_ERROR);
 }
 
 void ReportException(Isolate* isolate, TryCatch* try_catch) {
     HandleScope handle_scope(isolate);
-    Handle<Value> stack_trace = try_catch->StackTrace();
+    Local<Value> stack_trace = try_catch->StackTrace();
 
     if (stack_trace.IsEmpty()) {
         ReportError(isolate, try_catch->Exception());
@@ -71,7 +71,7 @@ void ReportException(Isolate* isolate, TryCatch* try_catch) {
     }
 }
 
-Handle<Value> WrapError(Isolate* isolate, Handle<Value> exception) {
+Local<Value> WrapError(Isolate* isolate, Local<Value> exception) {
     EscapableHandleScope handle_scope(isolate);
 
     Local<Object> obj = Object::New(isolate);
@@ -87,17 +87,17 @@ Handle<Value> WrapError(Isolate* isolate, Handle<Value> exception) {
     return handle_scope.Escape(obj);
 }
 
-Handle<Value> JSONStringify(Isolate* isolate, Handle<Value> obj) {
-    Handle<Context> context = isolate->GetCurrentContext();
-    Handle<Object> global = context->Global();
+Local<Value> JSONStringify(Isolate* isolate, Local<Value> obj) {
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Object> global = context->Global();
     EscapableHandleScope handle_scope(isolate);
 
-    Handle<Value> JSONValue = global->Get(String::NewFromUtf8(isolate, "JSON"));
-    Handle<Object> JSON = JSONValue->ToObject();
-    Handle<Function> stringify = Handle<Function>::Cast(
+    Local<Value> JSONValue = global->Get(String::NewFromUtf8(isolate, "JSON"));
+    Local<Object> JSON = JSONValue->ToObject();
+    Local<Function> stringify = Local<Function>::Cast(
             JSON->Get(String::NewFromUtf8(isolate, "stringify")));
 
-    Handle<Value> args[] = { obj };
+    Local<Value> args[] = { obj };
     Local<Value> result = stringify->Call(JSON, 1, args);
 
     return handle_scope.Escape(result);
