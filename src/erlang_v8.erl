@@ -12,6 +12,18 @@
 -export([call/4]).
 -export([call/5]).
 
+-export([t/0]).
+
+t() ->
+    application:ensure_all_started(erlang_v8),
+    {ok, VM} = start_vm(),
+        [begin
+        {ok, Context} = erlang_v8_vm:create_context(VM),
+        R = erlang_v8:eval(VM, Context, <<"1 + 1;">>),
+        ok = erlang_v8_vm:destroy_context(VM, Context),
+        R
+         end || _ <- lists:seq(1, 10000)].
+
 start_vm() ->
     start_vm([]).
 
