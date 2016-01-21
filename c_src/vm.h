@@ -20,7 +20,6 @@ class VM {
                 char* scriptv[]); 
 
         v8::Isolate* GetIsolate();
-        // v8::Platform* GetPlatform();
 
         void Eval(Packet *packet);
         void Call(Packet *packet);
