@@ -31,9 +31,9 @@ all() ->
         eval,
         call,
         return_type,
+        timeout,
         %% nested_return_type,
         %% errors,
-        timeout,
         %% contexts,
         %% reset
         %% restart,
@@ -122,6 +122,26 @@ return_type(_Config) ->
     erlang_v8:stop_vm(P),
     ok.
 
+timeout(_Config) ->
+    {ok, VM} = erlang_v8:start_vm(),
+
+    {ok, Context1} = erlang_v8_vm:create_context(VM),
+    {ok, Context2} = erlang_v8_vm:create_context(VM),
+
+    {ok, undefined} = erlang_v8:eval(VM, Context1, <<"var x = 1;">>),
+    {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
+
+    {error, timeout} = erlang_v8:eval(VM, Context2, <<"while (true) {}">>, 100),
+
+    {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
+
+    ok = erlang_v8_vm:destroy_context(VM, Context1),
+    ok = erlang_v8_vm:destroy_context(VM, Context2),
+
+    erlang_v8:stop_vm(VM),
+    ok.
+
+
 nested_return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
@@ -161,17 +181,17 @@ errors(_Config) ->
     erlang_v8:stop_vm(P),
     ok.
 
-timeout(_Config) ->
-    {ok, P} = erlang_v8:start_vm(),
-
-    {ok, Context} = erlang_v8_vm:create_context(P),
-
-    {error, timeout} = erlang_v8:eval(P, Context, <<"while (true) {}">>, 10000),
-
-    ok = erlang_v8_vm:destroy_context(P, Context),
-
-    erlang_v8:stop_vm(P),
-    ok.
+%% timeout(_Config) ->
+%%     {ok, P} = erlang_v8:start_vm(),
+%%
+%%     {ok, Context} = erlang_v8_vm:create_context(P),
+%%
+%%     {error, timeout} = erlang_v8:eval(P, Context, <<"while (true) {}">>, 10000),
+%%
+%%     ok = erlang_v8_vm:destroy_context(P, Context),
+%%
+%%     erlang_v8:stop_vm(P),
+%%     ok.
 
 contexts(_Config) ->
     {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
