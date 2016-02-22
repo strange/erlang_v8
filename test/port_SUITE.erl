@@ -37,14 +37,14 @@ all() ->
         contexts,
         %% reset
         %% restart,
-        single_source
-        %% multi_source,
+        single_source,
+        %% multi_source
         %% file_source,
         %% multiple_eval_with_reset,
         %% multiple_vms,
         %% performance,
         %% big_input,
-        %% escaped_control_characters
+        escaped_control_characters
     ].
 
 init_per_suite(Config) ->
@@ -262,13 +262,21 @@ single_source(_Config) ->
     ok.
 
 multi_source(_Config) ->
-    {ok, P} = erlang_v8:start_vm([{source, <<"var x = 1; var y = 2;">>}]),
-    {ok, 1} = erlang_v8:eval(P, <<"x;">>),
-    {ok, 2} = erlang_v8:eval(P, <<"y;">>),
-    erlang_v8:restart_vm(P),
-    {ok, 1} = erlang_v8:eval(P, <<"x;">>),
-    {ok, 2} = erlang_v8:eval(P, <<"y;">>),
-    erlang_v8:stop_vm(P),
+    {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1; var y = 2;">>}]),
+
+    {ok, Context} = erlang_v8_vm:create_context(VM),
+
+    {ok, 1} = erlang_v8:eval(VM, Context, <<"x;">>),
+    {ok, 2} = erlang_v8:eval(VM, Context, <<"y;">>),
+
+    erlang_v8:restart_vm(VM),
+
+    {ok, 1} = erlang_v8:eval(VM, Context, <<"x;">>),
+    {ok, 2} = erlang_v8:eval(VM, Context, <<"y;">>),
+
+    ok = erlang_v8_vm:destroy_context(VM, Context),
+
+    erlang_v8:stop_vm(VM),
     ok.
 
 file_source(_Config) ->
