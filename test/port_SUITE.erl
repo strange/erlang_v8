@@ -33,7 +33,7 @@ all() ->
         return_type,
         timeout,
         nested_return_type,
-        %% errors,
+        errors,
         %% contexts,
         %% reset
         %% restart,
