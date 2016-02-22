@@ -32,7 +32,7 @@ all() ->
         call,
         return_type,
         timeout,
-        %% nested_return_type,
+        nested_return_type,
         %% errors,
         %% contexts,
         %% reset
@@ -143,15 +143,15 @@ timeout(_Config) ->
 
 
 nested_return_type(_Config) ->
-    {ok, P} = erlang_v8:start_vm(),
+    {ok, VM} = erlang_v8:start_vm(),
 
-    {ok, Context} = erlang_v8_vm:create_context(P),
+    {ok, Context} = erlang_v8_vm:create_context(VM),
 
-    {ok, [
-           {<<"val">>, 1},
-           {<<"list">>, [1, 2, 3]},
-           {<<"obj">>, [{<<"val">>, 1}]}
-    ]} = erlang_v8:eval(P, Context, <<"
+    {ok, #{
+           <<"val">> := 1,
+           <<"list">> := [1, 2, 3],
+           <<"obj">> := #{ <<"val">> := 1 }
+    }} = erlang_v8:eval(VM, Context, <<"
     var x = {
         val: 1,
         list: [1, 2, 3],
@@ -162,9 +162,9 @@ nested_return_type(_Config) ->
     x
     ">>),
 
-    ok = erlang_v8_vm:destroy_context(P, Context),
+    ok = erlang_v8_vm:destroy_context(VM, Context),
 
-    erlang_v8:stop_vm(P),
+    erlang_v8:stop_vm(VM),
     ok.
  
 errors(_Config) ->
