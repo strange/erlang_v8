@@ -128,7 +128,7 @@ int main(int argc, char* argv[]) {
     Isolate* isolate = Isolate::New(create_params);
 
     VM vm(platform, isolate, argc, argv);
-    FTRACE("Initial VM: %x\n", &vm);
+    FTRACE("Initial VM: %p\n", &vm);
     {
         Isolate::Scope isolate_scope(isolate);
 

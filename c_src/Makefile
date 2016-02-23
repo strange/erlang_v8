@@ -71,14 +71,14 @@ ifeq ($(OS),Darwin)
 	# different flags, on OS X. The following assumes Mavericks, XCode and
 	# default compiler (clang).
 	# TODO: This will not build.
-	g++ -Iinclude $(TARGET_SRC) \
+	g++ -I$(V8_DIR) \
+		$(TARGET_SRC) \
 		-stdlib=libstdc++ \
+		-std=c++0x \
 		-o $(TARGET_BIN) \
-		$(V8_LIB)/libv8_base.a \
+		$(V8_LIB)/libv8_{base,libbase,snapshot,libplatform}.a \
 		$(V8_LIB)/libicu{uc,i18n,data}.a \
-		-I $(V8_DIR)/include \
-		-lpthread \
-		-v
+		-lpthread
 else
 	g++ -I$(V8_DIR) \
 		$(TARGET_SRC) \

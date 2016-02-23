@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <map>
 #include <vector>
+#include <string>
+#include <pthread.h>
 #include <unistd.h>
 
 #include "include/libplatform/libplatform.h"
@@ -87,8 +89,8 @@ void VM::TerminateExecution() {
 }
 
 int VM::Size() {
-    FTRACE("Context size: %i\n", contexts.size());
-    contexts.size();
+    FTRACE("Context size: %zd\n", contexts.size());
+    return contexts.size();
 }
 
 void VM::Eval(Packet* packet) {
@@ -126,7 +128,7 @@ void VM::Eval(Packet* packet) {
         pthread_cancel(t);
         pthread_join(t, &res);
 
-        FTRACE("Join: %x\n", res);
+        // FTRACE("Join: %x\n", res);
 
         if (result.IsEmpty()) {
             assert(try_catch.HasCaught());
