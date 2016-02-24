@@ -4,6 +4,7 @@
 const uint8_t OP_OK = 0;
 const uint8_t OP_ERROR = 1;
 const uint8_t OP_TIMEOUT = 2;
+const uint8_t OP_INVALID_CONTEXT = 3;
 
 const uint8_t OP_EVAL = 1;
 const uint8_t OP_CALL = 2;

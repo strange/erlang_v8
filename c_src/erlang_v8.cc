@@ -19,8 +19,12 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
             void* data = AllocateUninitialized(length);
             return data == NULL ? data : memset(data, 0, length);
         }
-        virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-        virtual void Free(void* data, size_t) { free(data); }
+        virtual void* AllocateUninitialized(size_t length) {
+            return malloc(length);
+        }
+        virtual void Free(void* data, size_t) {
+            free(data);
+        }
 };
 
 size_t PacketLength() {

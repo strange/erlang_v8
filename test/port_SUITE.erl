@@ -193,6 +193,11 @@ contexts(_Config) ->
     {ok, <<"no">>} = erlang_v8:eval(P, Context1, <<"erlang_v8">>),
     {ok, <<"yes">>} = erlang_v8:eval(P, Context2, <<"erlang_v8">>),
 
+    ok = erlang_v8_vm:destroy_context(P, Context1),
+    ok = erlang_v8_vm:destroy_context(P, Context2),
+
+    {error, invalid_context} = erlang_v8:eval(P, Context1, <<"erlang_v8">>),
+
     erlang_v8:stop_vm(P),
 
     ok.

@@ -37,6 +37,7 @@
 -define(OP_OK, 0).
 -define(OP_ERROR, 1).
 -define(OP_TIMEOUT, 2).
+-define(OP_INVALID_CONTEXT, 3).
 
 -record(state, {
         initial_source = [],
@@ -205,21 +206,26 @@ send_to_port(Port, Op, Ref, Source, Timeout, _MaxSourceSize) ->
     receive_port_data(Port, Timeout).
 
 receive_port_data(Port, _Timeout) ->
+    io:format(standard_error, "Waiting~n", []),
     receive
         {Port, {data, <<_:8, _:32, "">>}} ->
+            {ok, undefined};
+        {Port, {data, <<?OP_OK:8, _:32, "undefined">>}} ->
             {ok, undefined};
         {Port, {data, <<?OP_OK:8, _:32, Response/binary>>}} ->
             case catch jsx:decode(Response, [return_maps]) of 
                 {'EXIT', _F} ->
-                    {ok, undefined};
+                    {ok, Response};
                 R ->
                     {ok, R}
             end;
         {Port, {data, <<?OP_ERROR:8, _:32, Response/binary>>}} ->
             #{ <<"error">> := Reason } = jsx:decode(Response, [return_maps]),
             {call_error, Reason};
-        {Port, {data, <<?OP_TIMEOUT:8, _:32, _Response/binary>>}} ->
+        {Port, {data, <<?OP_TIMEOUT:8, _:32, _/binary>>}} ->
             {call_error, timeout};
+        {Port, {data, <<?OP_INVALID_CONTEXT:8, _:32, _/binary>>}} ->
+            {call_error, invalid_context};
         {Port, Error} ->
             %% TODO: we should probably special case here.
             {error, Error}

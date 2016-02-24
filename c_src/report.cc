@@ -22,11 +22,11 @@ void Report(Isolate* isolate, Local<Value> response, uint8_t op) {
 
     Local<Value> input;
 
-    TRACE("REPORTING STUFF.");
-
     if (response->IsUndefined()) {
         TRACE("Undefined");
         input = String::NewFromUtf8(isolate, "undefined");
+    } else if (response->IsString()) {
+        input = response;
     } else {
         input = JSONStringify(isolate, response);
     }
@@ -48,6 +48,8 @@ void Report(Isolate* isolate, Local<Value> response, uint8_t op) {
 
     cout << *utf8;
     cout.flush();
+
+    TRACE("Flushed");
 }
 
 void ReportOK(Isolate* isolate, Local<Value> response) {
