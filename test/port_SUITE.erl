@@ -60,7 +60,7 @@ end_per_suite(_Config) ->
 eval(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {ok, Context} = erlang_v8_vm:create_context(P),
+    {ok, Context} = erlang_v8:create_context(P),
 
     {ok, 2} = erlang_v8:eval(P, Context, <<"1 + 1">>),
     {ok, 5} = erlang_v8:eval(P, Context, <<"var a = 3; a + 2;">>),
@@ -73,7 +73,7 @@ eval(_Config) ->
 call(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {ok, Context} = erlang_v8_vm:create_context(P),
+    {ok, Context} = erlang_v8:create_context(P),
     
     {ok, undefined} = erlang_v8:eval(P, Context, <<"function sum(a, b) { return a + b; }">>),
     {ok, 3} = erlang_v8:call(P, Context, <<"sum">>, [1, 2]),
@@ -109,7 +109,7 @@ call(_Config) ->
 
 return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
-    {ok, Context} = erlang_v8_vm:create_context(P),
+    {ok, Context} = erlang_v8:create_context(P),
 
     {ok, 1} = erlang_v8:eval(P, Context, <<"1">>),
     {ok, #{ <<"a">> := 1 }} = erlang_v8:eval(P, Context, <<"x = { a: 1 }; x">>),
@@ -125,8 +125,8 @@ return_type(_Config) ->
 timeout(_Config) ->
     {ok, VM} = erlang_v8:start_vm(),
 
-    {ok, Context1} = erlang_v8_vm:create_context(VM),
-    {ok, Context2} = erlang_v8_vm:create_context(VM),
+    {ok, Context1} = erlang_v8:create_context(VM),
+    {ok, Context2} = erlang_v8:create_context(VM),
 
     {ok, undefined} = erlang_v8:eval(VM, Context1, <<"var x = 1;">>),
     {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
@@ -145,7 +145,7 @@ timeout(_Config) ->
 nested_return_type(_Config) ->
     {ok, VM} = erlang_v8:start_vm(),
 
-    {ok, Context} = erlang_v8_vm:create_context(VM),
+    {ok, Context} = erlang_v8:create_context(VM),
 
     {ok, #{
            <<"val">> := 1,
@@ -170,7 +170,7 @@ nested_return_type(_Config) ->
 errors(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
-    {ok, Context} = erlang_v8_vm:create_context(P),
+    {ok, Context} = erlang_v8:create_context(P),
 
     {error, <<"exception">>} = erlang_v8:eval(P, Context, <<"throw 'exception';">>),
     {error, <<"ReferenceError: i_do_not_exist is not defined", _/binary>>} =

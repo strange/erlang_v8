@@ -4,8 +4,10 @@
 -export([start_vm/1]).
 -export([stop_vm/1]).
 
--export([reset_vm/2]).
 -export([restart_vm/1]).
+
+-export([create_context/1]).
+-export([destroy_context/2]).
 
 -export([eval/3]).
 -export([eval/4]).
@@ -21,11 +23,14 @@ start_vm(Opts) ->
 stop_vm(Pid) ->
     erlang_v8_vm:stop(Pid).
 
-reset_vm(Pid, Context) ->
-    erlang_v8_vm:reset(Pid, Context).
-
 restart_vm(Pid) ->
     erlang_v8_vm:restart(Pid).
+
+create_context(VM) ->
+    erlang_v8_vm:create_context(VM).
+
+destroy_context(VM, Context) ->
+    erlang_v8_vm:destroy_context(VM, Context).
 
 eval(Pid, Context, Source) ->
     erlang_v8_vm:eval(Pid, Context, Source).
