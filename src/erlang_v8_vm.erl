@@ -206,7 +206,6 @@ send_to_port(Port, Op, Ref, Source, Timeout, _MaxSourceSize) ->
     receive_port_data(Port, Timeout).
 
 receive_port_data(Port, _Timeout) ->
-    io:format(standard_error, "Waiting~n", []),
     receive
         {Port, {data, <<_:8, _:32, "">>}} ->
             {ok, undefined};
