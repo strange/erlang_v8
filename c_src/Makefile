@@ -7,8 +7,10 @@ BUILD_ARCH_32 := ia32
 BUILD_ARCH_64 := x64
 BUILD_ARCH := $(BUILD_ARCH_$(ARCH))
 
-LIB_DIR := ../lib
-PRIV_DIR := ../priv
+ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
+
+LIB_DIR := $(ROOT_DIR)/../lib
+PRIV_DIR := $(ROOT_DIR)/../priv
 
 DEPOT_REF := 1e82189e18319bd9055c0c4f952cba1c074d558e
 DEPOT_DIR := $(LIB_DIR)/depot_tools
