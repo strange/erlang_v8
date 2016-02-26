@@ -12,10 +12,10 @@ ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 LIB_DIR := $(ROOT_DIR)/../lib
 PRIV_DIR := $(ROOT_DIR)/../priv
 
-DEPOT_REF := 1e82189e18319bd9055c0c4f952cba1c074d558e
+DEPOT_REF := ee496a9b4de3bb5a02ba76fd2815a0bf27b2e850
 DEPOT_DIR := $(LIB_DIR)/depot_tools
 
-V8_REF := 9a2e8c14d2f19ed08397672a4a4b3d33751ee259
+V8_REF := ad08a4cd49313cae01a8c1b5e5b2e477b6c1d2e3
 V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 
@@ -62,9 +62,13 @@ ifeq ($(wildcard $(V8_DIR)),)
 	cd $(V8_DIR) && git reset --hard $(V8_REF)
 endif
 
+GYPFLAGS ?=
+GYPFLAGS += -Dlinux_use_bundled_gold=0
+GYPFLAGS += -Dlinux_use_bundled_binutils=0
+GYPFLAGS += -Dv8_use_external_startup_data=0
+
 $(V8_LIB)/obj.target/tools/gyp/libv8_base.a: $(V8_DIR)
-	GYPFLAGS=-Dv8_use_external_startup_data=0
-	@cd $(V8_DIR) && make $(BUILD_ARCH).release -j4 werror=no GYPFLAGS="-Dv8_use_external_startup_data=0"
+	@cd $(V8_DIR) && make $(BUILD_ARCH).release -j4 werror=no GYPFLAGS="$(GYPFLAGS)"
 	@touch $@
 
 $(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/obj.target/tools/gyp/libv8_base.a
