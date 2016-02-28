@@ -16,12 +16,10 @@
 using namespace v8;
 using namespace std;
 
-
 struct TimeoutHandlerArgs {
     VM* vm;
     long timeout;
 };
-
 
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
