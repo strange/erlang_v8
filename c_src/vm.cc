@@ -36,11 +36,9 @@ void* TimeoutHandler(void *arg) {
     return NULL;
 }
 
-VM::VM(Platform* platform_, Isolate* isolate_, int scriptc, char* scriptv[]) {
+VM::VM(Platform* platform_, Isolate* isolate_) {
     isolate = isolate_;
     platform = platform_;
-
-    scripts = vector<string>(scriptv + 1, scriptv + scriptc);
 }
 
 bool VM::CreateContext(uint32_t ref) {
@@ -52,15 +50,6 @@ bool VM::CreateContext(uint32_t ref) {
     Persistent<Context, CopyablePersistentTraits<Context>> pcontext(isolate, context);
 
     Context::Scope context_scope(context);
-
-    // Initializing scripts for every new context. This is a
-    // temporary solution.
-    for (auto script : scripts) {
-        Local<String> source = String::NewFromUtf8(isolate,
-                script.c_str());
-        Local<Script> compiled = Script::Compile(source);
-        Local<Value> result = compiled->Run();
-    }
 
     contexts[ref] = pcontext;
     return true;

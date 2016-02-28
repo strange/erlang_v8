@@ -166,7 +166,7 @@ kill_port(#state{monitor_pid = Pid, port = Port} = State) ->
 %% @doc Start port and port monitor.
 start_port(#state{initial_source = Source} = State) ->
     Executable = filename:join(priv_dir(), ?EXECUTABLE),
-    Opts = [{args, Source}|?SPAWN_OPTS],
+    Opts = [{args, [Source]}|?SPAWN_OPTS],
     Port = open_port({spawn_executable, Executable}, Opts),
     monitor_port(State#state{port = Port}).
 
@@ -240,18 +240,18 @@ priv_dir() ->
 
 %% @doc Parse proplists/opts and populate a state record.
 parse_opts(Opts) ->
-    lists:foldl(fun parse_opt/2, #state{initial_source = []}, Opts).
+    lists:foldl(fun parse_opt/2, #state{initial_source = <<>>}, Opts).
 
 %% @doc Append source specified in source option.
 parse_opt({source, S}, #state{initial_source = InitialSource} = State) ->
-    State#state{initial_source = [S|InitialSource]};
+    State#state{initial_source = <<InitialSource/binary, S/binary>>};
 
 %% @doc Read contents of file option and append to state.
 parse_opt({file, F}, #state{initial_source = InitialSource} = State) ->
     %% Files should probably be read in the OS process instead to prevent
     %% keeping multiple copies of the JS source code in memory.
     {ok, S} = file:read_file(F),
-    State#state{initial_source = [S|InitialSource]};
+    State#state{initial_source = <<InitialSource/binary, S/binary>>};
 
 %% @doc Invalid max source size
 parse_opt({max_source_size, N}, _State) when N > ?MAX_SOURCE_SIZE ->

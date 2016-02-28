@@ -12,12 +12,9 @@ class VM {
         v8::Platform* platform;
 
         std::map<uint32_t, v8::Persistent<v8::Context, v8::CopyablePersistentTraits<v8::Context>>> contexts;
-        std::vector<std::string> scripts;
-        v8::Persistent<v8::Context> lol;
 
     public:
-        VM(v8::Platform* platform_, v8::Isolate* isolate_, int scriptc,
-                char* scriptv[]); 
+        VM(v8::Platform* platform_, v8::Isolate* isolate_);
 
         v8::Isolate* GetIsolate();
 

@@ -126,12 +126,24 @@ int main(int argc, char* argv[]) {
     V8::Initialize();
     V8::SetFlagsFromCommandLine(&argc, argv, true);
 
-    ArrayBufferAllocator allocator;
-    Isolate::CreateParams create_params;
-    create_params.array_buffer_allocator = &allocator;
-    Isolate* isolate = Isolate::New(create_params);
+    Isolate::CreateParams params;
 
-    VM vm(platform, isolate, argc, argv);
+    char* source;
+    if (argc == 2) {
+        source = argv[1];
+    } else {
+        source = NULL;
+    }
+
+    StartupData snapshot = V8::CreateSnapshotDataBlob(source);
+
+    ArrayBufferAllocator allocator;
+    params.snapshot_blob = &snapshot;
+    params.array_buffer_allocator = &allocator;
+
+    Isolate* isolate = Isolate::New(params);
+
+    VM vm(platform, isolate);
     FTRACE("Initial VM: %p\n", &vm);
     {
         Isolate::Scope isolate_scope(isolate);
