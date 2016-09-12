@@ -70,7 +70,6 @@ GYPFLAGS += -Dv8_use_external_startup_data=0
 $(V8_LIB)/obj.target/src/libv8_base.a: $(V8_DIR)
 	@cd $(V8_DIR) && ./tools/dev/v8gen.py $(BUILD_ARCH).release
 	@cd $(V8_DIR) && make $(BUILD_ARCH).release -j4 werror=no GYPFLAGS="$(GYPFLAGS)"
-	@cp $(V8_LIB)/*.bin $(PRIV_DIR)
 	@touch $@
 	# ninja -C $(V8_DIR)/out.gn/$(BUILD_ARCH).release
 
@@ -94,7 +93,7 @@ else
 		-o $(TARGET_BIN) \
 		-Wno-unused-variable \
 		-Wl,--start-group \
-		$(V8_LIB)/obj.target/{src/libv8_{base,libbase,external_snapshot,libplatform,libsampler},third_party/icu/libicu{uc,i18n}}.a \
+		$(V8_LIB)/obj.target/{src/libv8_{base,libbase,snapshot,libplatform,libsampler},third_party/icu/libicu{uc,i18n}}.a \
 		-Wl,--end-group \
 		-lrt \
 		-ldl \
