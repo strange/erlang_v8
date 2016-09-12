@@ -120,10 +120,15 @@ int main(int argc, char* argv[]) {
     ios_base::sync_with_stdio(false);
 
     V8::InitializeICU();
+
     Platform* platform = v8::platform::CreateDefaultPlatform();
+
+    V8::InitializeICUDefaultLocation(argv[0]);                                    
+    V8::InitializeExternalStartupData(argv[0]); 
 
     V8::InitializePlatform(platform);
     V8::Initialize();
+
     V8::SetFlagsFromCommandLine(&argc, argv, true);
 
     Isolate::CreateParams params;

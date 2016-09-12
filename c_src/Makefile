@@ -12,10 +12,10 @@ ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 LIB_DIR := $(ROOT_DIR)/../lib
 PRIV_DIR := $(ROOT_DIR)/../priv
 
-DEPOT_REF := ee496a9b4de3bb5a02ba76fd2815a0bf27b2e850
+DEPOT_REF := c6787971b576148c94d8dc11dc3d28e88c971995
 DEPOT_DIR := $(LIB_DIR)/depot_tools
 
-V8_REF := ad08a4cd49313cae01a8c1b5e5b2e477b6c1d2e3
+V8_REF := 07234f240d2c346ee00e6a1c5a57b6ae861be6b3
 V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 
@@ -67,17 +67,21 @@ GYPFLAGS += -Dlinux_use_bundled_gold=0
 GYPFLAGS += -Dlinux_use_bundled_binutils=0
 GYPFLAGS += -Dv8_use_external_startup_data=0
 
-$(V8_LIB)/obj.target/tools/gyp/libv8_base.a: $(V8_DIR)
+$(V8_LIB)/obj.target/src/libv8_base.a: $(V8_DIR)
+	@cd $(V8_DIR) && ./tools/dev/v8gen.py $(BUILD_ARCH).release
 	@cd $(V8_DIR) && make $(BUILD_ARCH).release -j4 werror=no GYPFLAGS="$(GYPFLAGS)"
 	@touch $@
+	# ninja -C $(V8_DIR)/out.gn/$(BUILD_ARCH).release
 
-$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/obj.target/tools/gyp/libv8_base.a
+# g++ -I. hello_world.cpp -o hello_world -Wl,--start-group out/x64.release/obj.target/{tools/gyp/libv8_{base,libbase,external_snapshot,libplatform},third_party/icu/libicu{uc,i18n,data}}.a -Wl,--end-group -lrt -ldl -pthread -std=c++0x
+
+$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/obj.target/src/libv8_base.a
 ifeq ($(OS),Darwin)
 	# We need to link libstdc++ as XCode defaults to libc++, and use slightly
 	# different flags, on OS X. The following assumes Mavericks, XCode and
 	# default compiler (clang).
 	# TODO: This will not build.
-	g++ -I$(V8_DIR) \
+	g++ -I$(V8_DIR)  \
 		$(TARGET_SRC) \
 		-stdlib=libstdc++ \
 		-std=c++0x \
@@ -86,12 +90,12 @@ ifeq ($(OS),Darwin)
 		$(V8_LIB)/libicu{uc,i18n,data}.a \
 		-lpthread
 else
-	g++ -I$(V8_DIR) \
+	g++ -I$(V8_DIR) -I$(V8_DIR)/include \
 		$(TARGET_SRC) \
 		-o $(TARGET_BIN) \
 		-Wno-unused-variable \
 		-Wl,--start-group \
-		$(V8_LIB)/obj.target/{tools/gyp/libv8_{base,libbase,snapshot,libplatform},third_party/icu/libicu{uc,i18n,data}}.a \
+		$(V8_LIB)/obj.target/{src/libv8_{base,libbase,external_snapshot,libplatform,libsampler},third_party/icu/libicu{uc,i18n}}.a \
 		-Wl,--end-group \
 		-lrt \
 		-ldl \
