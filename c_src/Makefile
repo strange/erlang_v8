@@ -70,10 +70,9 @@ GYPFLAGS += -Dv8_use_external_startup_data=0
 $(V8_LIB)/obj.target/src/libv8_base.a: $(V8_DIR)
 	@cd $(V8_DIR) && ./tools/dev/v8gen.py $(BUILD_ARCH).release
 	@cd $(V8_DIR) && make $(BUILD_ARCH).release -j4 werror=no GYPFLAGS="$(GYPFLAGS)"
+	@cp $(V8_LIB)/*.bin $(PRIV_DIR)
 	@touch $@
 	# ninja -C $(V8_DIR)/out.gn/$(BUILD_ARCH).release
-
-# g++ -I. hello_world.cpp -o hello_world -Wl,--start-group out/x64.release/obj.target/{tools/gyp/libv8_{base,libbase,external_snapshot,libplatform},third_party/icu/libicu{uc,i18n,data}}.a -Wl,--end-group -lrt -ldl -pthread -std=c++0x
 
 $(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/obj.target/src/libv8_base.a
 ifeq ($(OS),Darwin)
