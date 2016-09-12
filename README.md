@@ -1,23 +1,3 @@
-# Stuff
-
-    erlang_v8_vm_sup + hash_ring
-    erlang_v8_vm
-
-    PROC1 -> OS1
-    PROC2 -> OS2
-
-    {ok, Context} = create_context().
-    {ok, Value} = eval(Context, Source).
-    {ok, Value} = call(Context, Fun, Args).
-    ok = destroy_context(Context).
-
-1. Send timeouts to os proc
-2. Report invalid contexts
-3. Collect "dead" contexts
-4. Create base-context pre-initialized with code from erlang
-
-Requires libtinfo.
-
 # `erlang_v8`
 
 Run JavaScript from Erlang in an external OS process.
@@ -66,34 +46,39 @@ Start a VM:
 
     {ok, VM} = erlang_v8:start_vm().
 
+Create a context:
+
+    {ok, Context} = erlang_v8:create_context(VM).
+
 Define a function:
 
     {ok, undefined} =
-        erlang_v8:eval(VM, <<"function sum(a, b) { return a + b }">>).
+        erlang_v8:eval(VM, Context, <<"function sum(a, b) { return a + b }">>).
 
 Call the function: 
 
-    {ok, 2} = erlang_v8:call(VM, <<"sum">>, [1, 1]).
+    {ok, 2} = erlang_v8:call(VM, Context, <<"sum">>, [1, 1]).
 
-You can reset the VM:
+Destroy the Context:
 
-    ok = erlang_v8:reset_vm(VM).
-    {error, <<"ReferenceError: sum is not defined">>} =
-        erlang_v8:call(VM, <<"sum">>, [1, 1]).
+    erlang_v8:destroy_context(VM, Context).
 
 Stop the VM:
 
     ok = erlang_v8:stop_vm(VM).
 
+## To be updated
+
 VMs can be initialized with code that is automatically reloaded when the VM is
 reset or restarted:
 
     {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1;">>}]).
+    {ok, Context} = erlang_v8:create_context(VM).
 
-    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
+    {ok, 1} = erlang_v8:eval(VM, Context, <<"x;">>).
 
     ok = erlang_v8:reset_vm(VM).
-    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
+    {ok, 1} = erlang_v8:eval(VM, Context, <<"x;">>).
 
     {ok, 2} = erlang_v8:eval(VM, <<"x = 2;">>).
     {ok, 2} = erlang_v8:eval(VM, <<"x;">>).
@@ -128,3 +113,18 @@ framework that, among other things, implements a pool.
 - Use custom protocol to support more data types (binary, dates etc
 - Refactor the API
 - Experiment with calling Erlang from v8 synchronously
+
+## Stuff
+
+    {ok, Context} = create_context().
+    {ok, Value} = eval(Context, Source).
+    {ok, Value} = call(Context, Fun, Args).
+    ok = destroy_context(Context).
+
+1. Send timeouts to os proc
+2. Report invalid contexts
+3. Collect "dead" contexts
+4. Create base-context pre-initialized with code from erlang
+
+Requires libtinfo.
+
