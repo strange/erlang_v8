@@ -71,13 +71,8 @@ bool NextPacket(Packet* packet) {
             ((uint8_t)buf[2] << 8) | (uint8_t)buf[3]);
     buf.erase(0, 4);
 
-    timeout = (((uint8_t)buf[0] << 24) | ((uint8_t)buf[1] << 16) |
-               ((uint8_t)buf[2] << 8) | (uint8_t)buf[3]);
-    buf.erase(0, 4);
-
     packet->op = op;
     packet->ref = ref;
-    packet->timeout = timeout;
     packet->data = buf;
 
     return true;
@@ -95,7 +90,6 @@ bool CommandLoop(VM& vm) {
         switch(packet.op) {
             case OP_EVAL:
                 FTRACE("Eval in context: %i\n", packet.ref);
-                FTRACE("With timeout: %i\n", packet.timeout);
                 vm.Eval(&packet);
                 TRACE("Evaled!!!\n");
                 break;

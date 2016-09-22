@@ -104,8 +104,11 @@ void VM::Eval(Packet* packet) {
         Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
         Local<Object> instructions = JSON::Parse(json_data)->ToObject();
 
+        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout");
         Local<String> source_key = String::NewFromUtf8(isolate, "source");
+
         Local<String> source = instructions->Get(source_key)->ToString();
+        Local<Integer> timeout = instructions->Get(timeout_key)->ToInteger();
 
         Local<Script> script = Script::Compile(source);
 
@@ -117,7 +120,7 @@ void VM::Eval(Packet* packet) {
             void *res;
             struct TimeoutHandlerArgs timeout_handler_args = {
                 this,
-                (long)packet->timeout
+                (long)timeout->Int32Value()
             };
 
             pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
@@ -171,9 +174,11 @@ void VM::Call(Packet* packet) {
         Local<String> function_key = String::NewFromUtf8(isolate, "function");
         Local<String> function_name = instructions->Get(function_key)->ToString();
 
+        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout");
         Local<String> args_key = String::NewFromUtf8(isolate, "args");
         Local<Value> args_value = instructions->Get(args_key);
         Local<Array> raw_args = Local<Array>::Cast(args_value);
+        Local<Integer> timeout = instructions->Get(timeout_key)->ToInteger();
 
         int len = raw_args->Length();
         Local<Value> *args = new Local<Value>[len];
@@ -198,7 +203,7 @@ void VM::Call(Packet* packet) {
         void *res;
         struct TimeoutHandlerArgs timeout_handler_args = {
             this,
-            (long)packet->timeout
+            (long)timeout->Int32Value()
         };
 
         pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);

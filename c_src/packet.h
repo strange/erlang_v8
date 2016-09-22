@@ -14,7 +14,6 @@ const uint8_t OP_DESTROY_CONTEXT = 4;
 struct Packet {
     uint8_t op;
     uint32_t ref;
-    uint32_t timeout;
     std::string data;
 };
 

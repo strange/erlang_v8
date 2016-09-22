@@ -92,24 +92,25 @@ init([Opts]) ->
 
 handle_call({call, Context, FunctionName, Args, Timeout}, _From,
             #state{port = Port, max_source_size = MaxSourceSize} = State) ->
-    Instructions = #{ function => FunctionName, args => Args },
-    Source = jsx:encode(Instructions),
-    handle_response(send_to_port(Port, ?OP_CALL, Context, Source, Timeout,
+    Instructions = jsx:encode(#{ function => FunctionName,
+                                 args => Args,
+                                 timeout => Timeout }),
+    handle_response(send_to_port(Port, ?OP_CALL, Context, Instructions,
                                  MaxSourceSize), State);
 
 handle_call({eval, Context, Source, Timeout}, _From,
             #state{port = Port, max_source_size = MaxSourceSize} = State) ->
-    Instructions = jsx:encode(#{ source => Source }),
+    Instructions = jsx:encode(#{ source => Source, timeout => Timeout }),
     handle_response(send_to_port(Port, ?OP_EVAL, Context, Instructions,
-                                 Timeout, MaxSourceSize), State);
+                                 MaxSourceSize), State);
 
 handle_call({create_context, _Timeout}, _From, #state{port = Port} = State) ->
     Context = erlang:unique_integer([positive]),
-    Port ! {self(), {command, <<?OP_CREATE_CONTEXT:8, Context:32, 0:32>>}},
+    Port ! {self(), {command, <<?OP_CREATE_CONTEXT:8, Context:32>>}},
     {reply, {ok, Context}, State};
 
 handle_call({destroy_context, Context}, _From, #state{port = Port} = State) ->
-    Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32, 0:32>>}},
+    Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32>>}},
     {reply, ok, State};
 
 handle_call(reset, _From, #state{port = Port} = State) ->
@@ -196,32 +197,32 @@ os_kill(OSPid) ->
     os:cmd(io_lib:format("kill -9 ~p", [OSPid])).
 
 %% @doc Send source to port and wait for response
-send_to_port(_Port, _Op, _Ref, Source, _Timeout, MaxSourceSize)
+send_to_port(_Port, _Op, _Ref, Source, MaxSourceSize)
   when size(Source) > MaxSourceSize ->
     {error, invalid_source_size};
-send_to_port(Port, Op, Ref, Source, Timeout, _MaxSourceSize) ->
-    Port ! {self(), {command, <<Op:8, Ref:32, Timeout:32, Source/binary>>}},
-    receive_port_data(Port, Timeout).
+send_to_port(Port, Op, Ref, Source, _MaxSourceSize) ->
+    Port ! {self(), {command, <<Op:8, Ref:32, Source/binary>>}},
+    receive_port_data(Port).
 
-receive_port_data(Port, _Timeout) ->
+receive_port_data(Port) ->
     receive
-        {Port, {data, <<_:8, _:32, "">>}} ->
+        {Port, {data, <<_:8, _Ref:32, "">>}} ->
             {ok, undefined};
-        {Port, {data, <<?OP_OK:8, _:32, "undefined">>}} ->
+        {Port, {data, <<?OP_OK:8, _Ref:32, "undefined">>}} ->
             {ok, undefined};
-        {Port, {data, <<?OP_OK:8, _:32, Response/binary>>}} ->
+        {Port, {data, <<?OP_OK:8, _Ref:32, Response/binary>>}} ->
             case catch jsx:decode(Response, [return_maps]) of 
                 {'EXIT', _F} ->
                     {ok, Response};
                 R ->
                     {ok, R}
             end;
-        {Port, {data, <<?OP_ERROR:8, _:32, Response/binary>>}} ->
+        {Port, {data, <<?OP_ERROR:8, _Ref:32, Response/binary>>}} ->
             #{ <<"error">> := Reason } = jsx:decode(Response, [return_maps]),
             {call_error, Reason};
-        {Port, {data, <<?OP_TIMEOUT:8, _:32, _/binary>>}} ->
+        {Port, {data, <<?OP_TIMEOUT:8, _Ref:32, _/binary>>}} ->
             {call_error, timeout};
-        {Port, {data, <<?OP_INVALID_CONTEXT:8, _:32, _/binary>>}} ->
+        {Port, {data, <<?OP_INVALID_CONTEXT:8, _Ref:32, _/binary>>}} ->
             {call_error, invalid_context};
         {Port, Error} ->
             %% TODO: we should probably special case here.
