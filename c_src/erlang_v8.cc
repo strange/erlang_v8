@@ -45,7 +45,6 @@ size_t PacketLength() {
 bool NextPacket(Packet* packet) {
     size_t len = PacketLength();
     uint32_t ref = 0;
-    uint32_t timeout = 0;
 
     if (len == 0) {
         return false;
@@ -80,9 +79,10 @@ bool NextPacket(Packet* packet) {
 bool CommandLoop(VM& vm) {
     HandleScope handle_scope(vm.GetIsolate());
 
+    bool reset = false;
     Packet packet;
 
-    while (NextPacket(&packet)) {
+    while (!reset && NextPacket(&packet)) {
         TRACE("In command loop!\n");
         vm.Size();
 
@@ -103,16 +103,16 @@ bool CommandLoop(VM& vm) {
                 FTRACE("Destroying context: %i\n", packet.ref);
                 vm.DestroyContext(packet.ref);
                 break;
+            case OP_RESET_VM:
+                FTRACE("Ignoring reset: %i\n", packet.ref);
+                // reset = true;
+                break;
         }
-
-        // TODO: Move inside VM-handler?
         vm.PumpMessageLoop();
-
         packet = (const Packet){ 0 };
     }
     Isolate::GetCurrent()->ContextDisposedNotification(); 
-
-    return true;
+    return reset;
 }
 
 int main(int argc, char* argv[]) {
