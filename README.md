@@ -66,22 +66,20 @@ Stop the VM:
 
     ok = erlang_v8:stop_vm(VM).
 
-## To be updated
-
 VMs can be initialized with code that is automatically available in all
 contexts:
 
     {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1;">>}]).
-    {ok, Context} = erlang_v8:create_context(VM).
+    {ok, Context1} = erlang_v8:create_context(VM).
 
-    {ok, 1} = erlang_v8:eval(VM, Context, <<"x;">>).
-    {ok, 2} = erlang_v8:eval(VM, Context, <<"x = 2;">>).
-    {ok, 2} = erlang_v8:eval(VM, Context, <<"x;">>).
+    {ok, 1} = erlang_v8:eval(VM, Context1, <<"x;">>).
+    {ok, 2} = erlang_v8:eval(VM, Context1, <<"x = 2;">>).
+    {ok, 2} = erlang_v8:eval(VM, Context1, <<"x;">>).
 
     {ok, Context2} = erlang_v8:create_context(VM).
     {ok, 1} = erlang_v8:eval(VM, Context2, <<"x;">>).
 
-    erlang_v8:destroy_context(VM, Context).
+    erlang_v8:destroy_context(VM, Context1).
     erlang_v8:destroy_context(VM, Context2).
 
     ok = erlang_v8:stop_vm(VM).
@@ -112,3 +110,4 @@ framework that, among other things, implements a pool.
 - Use custom protocol to support more data types (binary, dates etc
 - Refactor the API
 - Experiment with calling Erlang from v8 synchronously
+- Build on OS X again
