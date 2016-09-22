@@ -24,14 +24,14 @@ struct TimeoutHandlerArgs {
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
     TRACE("Timeout started.\n");
-    usleep(1000000);
+    FTRACE("With timeout: %i\n", args->timeout);
+    usleep(args->timeout);
     TRACE("After sleep,\n");
 
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
 
     args->vm->TerminateExecution();
-    args->vm->PumpMessageLoop();
 
     return NULL;
 }
@@ -94,7 +94,7 @@ void VM::Eval(Packet* packet) {
             contexts[packet->ref]);
 
     if (context.IsEmpty()) {
-        Local<String> tt = String::NewFromUtf8(isolate, "empty contextz");
+        Local<String> tt = String::NewFromUtf8(isolate, "empty context");
         Report(isolate, tt, OP_INVALID_CONTEXT);
     } else {
         Context::Scope context_scope(context);
@@ -115,12 +115,12 @@ void VM::Eval(Packet* packet) {
         } else {
             pthread_t t;
             void *res;
-            struct TimeoutHandlerArgs args = {
+            struct TimeoutHandlerArgs timeout_handler_args = {
                 this,
-                (long)1
+                (long)packet->timeout
             };
 
-            pthread_create(&t, NULL, TimeoutHandler, &args);
+            pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
 
             Local<Value> result = script->Run();
 
@@ -193,7 +193,20 @@ void VM::Call(Packet* packet) {
         Local<String> source = String::Concat(String::Concat(prefix,
                     function_name), suffix);
         Local<Script> script = Script::Compile(source);
+
+        pthread_t t;
+        void *res;
+        struct TimeoutHandlerArgs timeout_handler_args = {
+            this,
+            (long)packet->timeout
+        };
+
+        pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
+
         Local<Value> eval_result = script->Run();
+
+        pthread_cancel(t);
+        pthread_join(t, &res);
 
         if (eval_result.IsEmpty()) {
             assert(try_catch.HasCaught());

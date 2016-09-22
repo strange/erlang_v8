@@ -25,7 +25,7 @@
 
 -define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 4}, binary]).
--define(DEFAULT_TIMEOUT, 15000).
+-define(DEFAULT_TIMEOUT, 500000).
 -define(MAX_SOURCE_SIZE, 16#FFFFFFFF).
 
 -define(OP_EVAL, 1).
@@ -61,17 +61,17 @@ eval(Pid, Context, Source) ->
     eval(Pid, Context, Source, ?DEFAULT_TIMEOUT).
 
 eval(Pid, Context, Source, Timeout) ->
-    gen_server:call(Pid, {eval, Context, Source, Timeout}, Timeout + 1000).
+    gen_server:call(Pid, {eval, Context, Source, Timeout}, Timeout * 2).
 
 call(Pid, Context, FunctionName, Args) ->
     call(Pid, Context, FunctionName, Args, ?DEFAULT_TIMEOUT).
 
 call(Pid, Context, FunctionName, Args, Timeout) ->
     gen_server:call(Pid, {call, Context, FunctionName, Args, Timeout},
-                    Timeout + 1000).
+                    Timeout * 2).
 
 destroy_context(Pid, Context) ->
-    gen_server:call(Pid, {destroy_context, Context}).
+    gen_server:call(Pid, {destroy_context, Context}, 20000).
 
 reset(Pid) ->
     gen_server:call(Pid, reset).
@@ -105,11 +105,11 @@ handle_call({eval, Context, Source, Timeout}, _From,
 
 handle_call({create_context, _Timeout}, _From, #state{port = Port} = State) ->
     Context = erlang:unique_integer([positive]),
-    Port ! {self(), {command, <<?OP_CREATE_CONTEXT:8, Context:32>>}},
+    Port ! {self(), {command, <<?OP_CREATE_CONTEXT:8, Context:32, 0:32>>}},
     {reply, {ok, Context}, State};
 
 handle_call({destroy_context, Context}, _From, #state{port = Port} = State) ->
-    Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32>>}},
+    Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32, 0:32>>}},
     {reply, ok, State};
 
 handle_call(reset, _From, #state{port = Port} = State) ->
@@ -200,7 +200,7 @@ send_to_port(_Port, _Op, _Ref, Source, _Timeout, MaxSourceSize)
   when size(Source) > MaxSourceSize ->
     {error, invalid_source_size};
 send_to_port(Port, Op, Ref, Source, Timeout, _MaxSourceSize) ->
-    Port ! {self(), {command, <<Op:8, Ref:32, Source/binary>>}},
+    Port ! {self(), {command, <<Op:8, Ref:32, Timeout:32, Source/binary>>}},
     receive_port_data(Port, Timeout).
 
 receive_port_data(Port, _Timeout) ->
@@ -226,8 +226,6 @@ receive_port_data(Port, _Timeout) ->
         {Port, Error} ->
             %% TODO: we should probably special case here.
             {error, Error}
-        %% after Timeout ->
-        %%     {error, timeout}
     end.
 
 %% @doc Return the path to the application's priv dir (assuming directory

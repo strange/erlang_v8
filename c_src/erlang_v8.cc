@@ -43,8 +43,10 @@ size_t PacketLength() {
 }
 
 bool NextPacket(Packet* packet) {
+    TRACE("Ready for next!!\n");
     size_t len = PacketLength();
     uint32_t ref = 0;
+    uint32_t timeout = 0;
 
     if (len == 0) {
         return false;
@@ -67,11 +69,15 @@ bool NextPacket(Packet* packet) {
 
     ref = (((uint8_t)buf[0] << 24) | ((uint8_t)buf[1] << 16) |
             ((uint8_t)buf[2] << 8) | (uint8_t)buf[3]);
+    buf.erase(0, 4);
 
+    timeout = (((uint8_t)buf[0] << 24) | ((uint8_t)buf[1] << 16) |
+               ((uint8_t)buf[2] << 8) | (uint8_t)buf[3]);
     buf.erase(0, 4);
 
     packet->op = op;
     packet->ref = ref;
+    packet->timeout = timeout;
     packet->data = buf;
 
     return true;
@@ -80,17 +86,18 @@ bool NextPacket(Packet* packet) {
 bool CommandLoop(VM& vm) {
     HandleScope handle_scope(vm.GetIsolate());
 
-    bool reset = false;
     Packet packet;
 
-    while (!reset && NextPacket(&packet)) {
+    while (NextPacket(&packet)) {
         TRACE("In command loop!\n");
         vm.Size();
 
         switch(packet.op) {
             case OP_EVAL:
                 FTRACE("Eval in context: %i\n", packet.ref);
+                FTRACE("With timeout: %i\n", packet.timeout);
                 vm.Eval(&packet);
+                TRACE("Evaled!!!\n");
                 break;
             case OP_CALL:
                 FTRACE("Call in context: %i\n", packet.ref);
@@ -104,16 +111,16 @@ bool CommandLoop(VM& vm) {
                 FTRACE("Destroying context: %i\n", packet.ref);
                 vm.DestroyContext(packet.ref);
                 break;
-            case OP_RESET_VM:
-                FTRACE("Ignoring reset: %i\n", packet.ref);
-                // reset = true;
-                break;
         }
+
+        // TODO: Move inside VM-handler?
         vm.PumpMessageLoop();
+
         packet = (const Packet){ 0 };
     }
     Isolate::GetCurrent()->ContextDisposedNotification(); 
-    return reset;
+
+    return true;
 }
 
 int main(int argc, char* argv[]) {

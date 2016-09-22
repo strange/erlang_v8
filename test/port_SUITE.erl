@@ -20,7 +20,7 @@
 -export([file_source/1]).
 -export([multiple_eval_with_reset/1]).
 -export([multiple_vms/1]).
--export([big_input/1]).
+%% -export([big_input/1]).
 -export([performance/1]).
 -export([escaped_control_characters/1]).
 
@@ -28,23 +28,23 @@
 
 all() ->
     [
-        eval,
-        call,
-        return_type,
-        timeout,
-        nested_return_type,
-        errors,
-        contexts,
+        %% eval,
+        %% call,
+        %% return_type,
+        timeout
+        %% nested_return_type,
+        %% errors,
+        %% contexts,
         %% reset
         %% restart,
-        single_source,
+        %% single_source,
         %% multi_source
         %% file_source,
         %% multiple_eval_with_reset,
         %% multiple_vms,
         %% performance,
         %% big_input,
-        escaped_control_characters
+        %% escaped_control_characters
     ].
 
 init_per_suite(Config) ->
@@ -131,14 +131,14 @@ timeout(_Config) ->
     {ok, undefined} = erlang_v8:eval(VM, Context1, <<"var x = 1;">>),
     {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
 
-    {error, timeout} = erlang_v8:eval(VM, Context2, <<"while (true) {}">>, 100),
+    {error, timeout} = erlang_v8:eval(VM, Context2, <<"while (true) {}">>, 10000000),
 
     {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
 
-    ok = erlang_v8_vm:destroy_context(VM, Context1),
-    ok = erlang_v8_vm:destroy_context(VM, Context2),
+    %% ok = erlang_v8_vm:destroy_context(VM, Context1),
+    %% ok = erlang_v8_vm:destroy_context(VM, Context2),
 
-    erlang_v8:stop_vm(VM),
+    %% erlang_v8:stop_vm(VM),
     ok.
 
 
@@ -317,24 +317,24 @@ multiple_vms(_Config) ->
     ok = erlang_v8:stop_vm(VM2),
     ok.
 
-big_input(_Config) ->
-    {ok, VM} = erlang_v8:start_vm([{max_source_size, 1000}]),
-
-    {ok, Context} = erlang_v8_vm:create_context(VM),
-
-    {ok, undefined} = erlang_v8:eval(VM, Context, <<"function call(arg) {
-        return arg;
-    }">>),
-
-    {error, invalid_source_size} = erlang_v8:call(VM, Context, <<"call">>,
-                                                  [random_bytes(1000)]),
-
-    {ok, _} = erlang_v8:call(VM, Context, <<"call">>, [random_bytes(500)]),
-
-    ok = erlang_v8_vm:destroy_context(VM, Context),
-
-    ok = erlang_v8:stop_vm(VM),
-    ok.
+%% big_input(_Config) ->
+%%     {ok, VM} = erlang_v8:start_vm([{max_source_size, 1000}]),
+%%
+%%     {ok, Context} = erlang_v8_vm:create_context(VM),
+%%
+%%     {ok, undefined} = erlang_v8:eval(VM, Context, <<"function call(arg) {
+%%         return arg;
+%%     }">>),
+%%
+%%     {error, invalid_source_size} = erlang_v8:call(VM, Context, <<"call">>,
+%%                                                   [random_bytes(1000)]),
+%%
+%%     {ok, _} = erlang_v8:call(VM, Context, <<"call">>, [random_bytes(500)]),
+%%
+%%     ok = erlang_v8_vm:destroy_context(VM, Context),
+%%
+%%     ok = erlang_v8:stop_vm(VM),
+%%     ok.
 
 escaped_control_characters(_Config) ->
     {ok, VM} = erlang_v8:start_vm(),
@@ -367,5 +367,5 @@ performance(_Config) ->
 
 %% Helpers
 
-random_bytes(N) ->
-    list_to_binary([random:uniform(26) + 96 || _ <- lists:seq(0, N - 1)]).
+%% random_bytes(N) ->
+%%     list_to_binary([random:uniform(26) + 96 || _ <- lists:seq(0, N - 1)]).
