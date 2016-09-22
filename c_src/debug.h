@@ -1,7 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#define DEBUG 1
+#define DEBUG 0
 
 #define FTRACE(fmt, ...) \
     do { if (DEBUG) fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, \
