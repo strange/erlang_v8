@@ -25,7 +25,7 @@ void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
 
     FTRACE("Timeout handler started: %i\n", args->timeout);
-    usleep(args->timeout);
+    usleep(args->timeout * 1000);
     TRACE("Timeout expired. Terminating execution.\n");
 
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);

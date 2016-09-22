@@ -131,7 +131,7 @@ timeout(_Config) ->
     {ok, undefined} = erlang_v8:eval(VM, Context1, <<"var x = 1;">>),
     {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
 
-    {error, timeout} = erlang_v8:eval(VM, Context2, <<"while (true) {}">>, 1000),
+    {error, timeout} = erlang_v8:eval(VM, Context2, <<"while (true) {}">>, 500),
 
     {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
 
