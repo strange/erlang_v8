@@ -23,10 +23,10 @@ struct TimeoutHandlerArgs {
 
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
-    TRACE("Timeout started.\n");
-    FTRACE("With timeout: %i\n", args->timeout);
+
+    FTRACE("Timeout handler started: %i\n", args->timeout);
     usleep(args->timeout);
-    TRACE("After sleep,\n");
+    TRACE("Timeout expired. Terminating execution.\n");
 
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
@@ -135,14 +135,13 @@ void VM::Eval(Packet* packet) {
             if (result.IsEmpty()) {
                 assert(try_catch.HasCaught());
                 if (try_catch.Message().IsEmpty() && try_catch.StackTrace().IsEmpty()) {
-                    TRACE("It's a timeout!\n");
+                    TRACE("Execution timed out.\n");
                     Local<String> tt = String::NewFromUtf8(isolate, "timeout");
                     Report(isolate, tt, OP_TIMEOUT);
                 } else {
-                    TRACE("It's a regular error\n");
+                    TRACE("Regular error\n");
                     ReportException(isolate, &try_catch);
                 }
-                FTRACE("Replacing context: %i\n", packet->ref);
                 // vm.CreateContext(packet->ref);
             } else {
                 ReportOK(isolate, result);
@@ -161,7 +160,7 @@ void VM::Call(Packet* packet) {
             contexts[packet->ref]);
 
     if (context.IsEmpty()) {
-        Local<Value> tt = String::NewFromUtf8(isolate, "empty contextz");
+        Local<Value> tt = String::NewFromUtf8(isolate, "empty context");
         Report(isolate, tt, OP_INVALID_CONTEXT);
     } else {
         Context::Scope context_scope(context);

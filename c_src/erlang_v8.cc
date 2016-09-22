@@ -43,7 +43,6 @@ size_t PacketLength() {
 }
 
 bool NextPacket(Packet* packet) {
-    TRACE("Ready for next!!\n");
     size_t len = PacketLength();
     uint32_t ref = 0;
     uint32_t timeout = 0;
@@ -91,7 +90,6 @@ bool CommandLoop(VM& vm) {
             case OP_EVAL:
                 FTRACE("Eval in context: %i\n", packet.ref);
                 vm.Eval(&packet);
-                TRACE("Evaled!!!\n");
                 break;
             case OP_CALL:
                 FTRACE("Call in context: %i\n", packet.ref);
