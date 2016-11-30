@@ -25,7 +25,7 @@
 
 -define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 4}, binary]).
--define(DEFAULT_TIMEOUT, 500000).
+-define(DEFAULT_TIMEOUT, 5000).
 -define(MAX_SOURCE_SIZE, 16#FFFFFFFF).
 
 -define(OP_EVAL, 1).
