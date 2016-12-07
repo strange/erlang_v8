@@ -306,7 +306,7 @@ dead_proc(_Config) ->
     end),
     receive
         Context ->
-            ok = erlang_v8_vm:destroy_context(P, Context)
+            {error, invalid_context} = erlang_v8_vm:destroy_context(P, Context)
     end,
 
     spawn(fun() ->
@@ -316,7 +316,7 @@ dead_proc(_Config) ->
     end),
     receive
         Context2 ->
-            ok = erlang_v8_vm:destroy_context(P, Context2)
+            {error, invalid_context} = erlang_v8_vm:destroy_context(P, Context2)
     end,
 
     erlang_v8:stop_vm(P),

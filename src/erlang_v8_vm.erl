@@ -108,9 +108,12 @@ handle_call({create_context, Pid, _Timeout}, _From, #state{port = Port, table = 
     Context = erlang:unique_integer([positive]),
     MRef = erlang:monitor(process, Pid),
     ets:insert(Table, {Context, MRef}),
-    X = send_to_port(Port, ?OP_CREATE_CONTEXT, Context),
-    io:format(standard_error, "DUDE: ~p~n", [X]),
-    {reply, {ok, Context}, State};
+    case send_to_port(Port, ?OP_CREATE_CONTEXT, Context) of
+        {ok, _Response} ->
+            {reply, {ok, Context}, State};
+        _Other ->
+            {reply, {error, invalid_context}, State}
+    end;
 
 handle_call({destroy_context, Context}, _From,
             #state{port = Port, table = Table} = State) ->
@@ -121,9 +124,12 @@ handle_call({destroy_context, Context}, _From,
         [] ->
             ok
     end,
-    X = send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
-    io:format(standard_error, "DUDE: ~p~n", [X]),
-    {reply, ok, State};
+    case send_to_port(Port, ?OP_DESTROY_CONTEXT, Context) of
+        {ok, _Response} ->
+            {reply, ok, State};
+        _Other ->
+            {reply, {error, invalid_context}, State}
+    end;
 
 handle_call(reset, _From, #state{port = Port} = State) ->
     Port ! {self(), {command, <<?OP_RESET_VM:8>>}},
@@ -145,10 +151,7 @@ handle_info({'DOWN', MRef, process, _Pid, _Reason},
             #state{table = Table, port = Port} = State) ->
     [[Context]] = ets:match(Table, {'$1', MRef}),
     true = ets:delete(Table, Context),
-    io:format(standard_error, "Stuff down: ~p~n", [MRef]),
-    %% Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32>>}},
-    X = send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
-    io:format(standard_error, "DUDE: ~p~n", [X]),
+    send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
     {noreply, State};
 
 handle_info(_Msg, State) ->
