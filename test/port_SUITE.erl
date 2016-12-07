@@ -18,6 +18,7 @@
 -export([multiple_vms/1]).
 -export([big_input/1]).
 -export([performance/1]).
+-export([dead_proc/1]).
 -export([escaped_control_characters/1]).
 
 %% Callbacks
@@ -36,6 +37,7 @@ all() ->
         multiple_vms,
         performance,
         big_input,
+        dead_proc,
         escaped_control_characters
     ].
 
@@ -290,6 +292,32 @@ performance(_Config) ->
      I <- lists:seq(0, 999)],
 
     ok = erlang_v8_vm:destroy_context(P, Context),
+
+    erlang_v8:stop_vm(P),
+    ok.
+
+dead_proc(_Config) ->
+    {ok, P} = erlang_v8:start_vm(),
+
+    Parent = self(),
+    spawn(fun() ->
+        {ok, Context} = erlang_v8:create_context(P),
+        Parent ! Context
+    end),
+    receive
+        Context ->
+            ok = erlang_v8_vm:destroy_context(P, Context)
+    end,
+
+    spawn(fun() ->
+        {ok, Context2} = erlang_v8:create_context(P),
+        ok = erlang_v8_vm:destroy_context(P, Context2),
+        Parent ! Context2
+    end),
+    receive
+        Context2 ->
+            ok = erlang_v8_vm:destroy_context(P, Context2)
+    end,
 
     erlang_v8:stop_vm(P),
     ok.

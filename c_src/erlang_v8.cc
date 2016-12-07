@@ -53,11 +53,11 @@ bool NextPacket(Packet* packet) {
     string buf;
     buf.resize(len);
 
-    for (int bytes_read = 0; bytes_read < len;) {                                                  
+    for (int bytes_read = 0; bytes_read < len;) {
         if (!cin.read(&buf[bytes_read], len - bytes_read)) {
             return false;
         }
-        bytes_read += cin.gcount();                                                                  
+        bytes_read += cin.gcount();
     }
 
     // extract the one-byte op code from the message and erase it from the
@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
 
     Platform* platform = v8::platform::CreateDefaultPlatform();
 
-    V8::InitializeICUDefaultLocation(argv[0]);                                    
+    V8::InitializeICUDefaultLocation(argv[0]);
     V8::InitializeExternalStartupData(argv[0]); 
 
     V8::InitializePlatform(platform);

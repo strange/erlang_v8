@@ -25,7 +25,7 @@
 
 -define(EXECUTABLE, "erlang_v8").
 -define(SPAWN_OPTS, [{packet, 4}, binary]).
--define(DEFAULT_TIMEOUT, 5000).
+-define(DEFAULT_TIMEOUT, 2000).
 -define(MAX_SOURCE_SIZE, 16#FFFFFFFF).
 
 -define(OP_EVAL, 1).
@@ -43,6 +43,7 @@
         initial_source = [],
         max_source_size = 5 * 1024 * 1024,
         port,
+        table,
         monitor_pid
     }).
 
@@ -55,23 +56,22 @@ start() ->
     gen_server:start(?MODULE, [], []).
 
 create_context(Pid) ->
-    gen_server:call(Pid, {create_context, 1000}, 2000).
+    call_with_timeout(Pid, {create_context, self(), 1000}, 5000).
 
 eval(Pid, Context, Source) ->
     eval(Pid, Context, Source, ?DEFAULT_TIMEOUT).
 
 eval(Pid, Context, Source, Timeout) ->
-    gen_server:call(Pid, {eval, Context, Source, Timeout}, Timeout * 2).
+    call_with_timeout(Pid, {eval, Context, Source, Timeout}, 30000).
 
 call(Pid, Context, FunctionName, Args) ->
     call(Pid, Context, FunctionName, Args, ?DEFAULT_TIMEOUT).
 
 call(Pid, Context, FunctionName, Args, Timeout) ->
-    gen_server:call(Pid, {call, Context, FunctionName, Args, Timeout},
-                    Timeout * 2).
+    call_with_timeout(Pid, {call, Context, FunctionName, Args, Timeout}, 30000).
 
 destroy_context(Pid, Context) ->
-    gen_server:call(Pid, {destroy_context, Context}, 20000).
+    gen_server:call(Pid, {destroy_context, Context}, infinity).
 
 reset(Pid) ->
     gen_server:call(Pid, reset).
@@ -87,7 +87,7 @@ stop(Pid) ->
 
 init([Opts]) ->
     rand:seed(exs64),
-    State = start_port(parse_opts(Opts)),
+    State = create_table(start_port(parse_opts(Opts))),
     {ok, State}.
 
 handle_call({call, Context, FunctionName, Args, Timeout}, _From,
@@ -104,13 +104,25 @@ handle_call({eval, Context, Source, Timeout}, _From,
     handle_response(send_to_port(Port, ?OP_EVAL, Context, Instructions,
                                  MaxSourceSize), State);
 
-handle_call({create_context, _Timeout}, _From, #state{port = Port} = State) ->
+handle_call({create_context, Pid, _Timeout}, _From, #state{port = Port, table = Table} = State) ->
     Context = erlang:unique_integer([positive]),
-    Port ! {self(), {command, <<?OP_CREATE_CONTEXT:8, Context:32>>}},
+    MRef = erlang:monitor(process, Pid),
+    ets:insert(Table, {Context, MRef}),
+    X = send_to_port(Port, ?OP_CREATE_CONTEXT, Context),
+    io:format(standard_error, "DUDE: ~p~n", [X]),
     {reply, {ok, Context}, State};
 
-handle_call({destroy_context, Context}, _From, #state{port = Port} = State) ->
-    Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32>>}},
+handle_call({destroy_context, Context}, _From,
+            #state{port = Port, table = Table} = State) ->
+    case ets:lookup(Table, Context) of
+        [{_Context, MRef}] ->
+            true = ets:delete(Table, Context),
+            true = erlang:demonitor(MRef, [flush]);
+        [] ->
+            ok
+    end,
+    X = send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
+    io:format(standard_error, "DUDE: ~p~n", [X]),
     {reply, ok, State};
 
 handle_call(reset, _From, #state{port = Port} = State) ->
@@ -128,6 +140,16 @@ handle_call(_Message, _From, State) ->
 
 handle_cast(_Message, State) ->
     {noreply, State}.
+
+handle_info({'DOWN', MRef, process, _Pid, _Reason},
+            #state{table = Table, port = Port} = State) ->
+    [[Context]] = ets:match(Table, {'$1', MRef}),
+    true = ets:delete(Table, Context),
+    io:format(standard_error, "Stuff down: ~p~n", [MRef]),
+    %% Port ! {self(), {command, <<?OP_DESTROY_CONTEXT:8, Context:32>>}},
+    X = send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
+    io:format(standard_error, "DUDE: ~p~n", [X]),
+    {noreply, State};
 
 handle_info(_Msg, State) ->
     {noreply, State}.
@@ -161,6 +183,10 @@ kill_port(#state{monitor_pid = Pid, port = Port} = State) ->
     catch port_close(Port),
     Pid ! kill,
     State#state{monitor_pid = undefined, port = undefined}.
+
+create_table(State) ->
+    TableRef = ets:new(?MODULE, [ordered_set]),
+    State#state{table = TableRef}.
 
 %% @doc Start port and port monitor.
 start_port(#state{initial_source = Source} = State) ->
@@ -196,12 +222,18 @@ monitor_port(#state{port = Port} = State) ->
 os_kill(OSPid) ->
     os:cmd(io_lib:format("kill -9 ~p", [OSPid])).
 
+send_to_port(Port, Op, Ref) ->
+    send_to_port(Port, Op, Ref, <<>>).
+
+send_to_port(Port, Op, Ref, Data) ->
+    send_to_port(Port, Op, Ref, Data, infinity).
+
 %% @doc Send source to port and wait for response
-send_to_port(_Port, _Op, _Ref, Source, MaxSourceSize)
-  when size(Source) > MaxSourceSize ->
+send_to_port(_Port, _Op, _Ref, Data, MaxSourceSize)
+  when size(Data) > MaxSourceSize ->
     {error, invalid_source_size};
-send_to_port(Port, Op, Ref, Source, _MaxSourceSize) ->
-    Port ! {self(), {command, <<Op:8, Ref:32, Source/binary>>}},
+send_to_port(Port, Op, Ref, Data, _MaxSourceSize) ->
+    Port ! {self(), {command, <<Op:8, Ref:32, Data/binary>>}},
     receive_port_data(Port).
 
 receive_port_data(Port) ->
@@ -260,3 +292,10 @@ parse_opt({max_source_size, N}, State) ->
 
 %% @doc Ignore unknown options.
 parse_opt(_, State) -> State.
+
+call_with_timeout(Pid, Message, Timeout) ->
+    try
+        gen_server:call(Pid, Message, Timeout)
+    catch exit:{timeout, _Context} ->
+        {error, vm_unresponsive}
+    end.

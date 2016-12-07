@@ -52,6 +52,10 @@ bool VM::CreateContext(uint32_t ref) {
     Context::Scope context_scope(context);
 
     contexts[ref] = pcontext;
+
+    Local<String> tt = String::NewFromUtf8(isolate, "context created");
+    Report(isolate, tt, OP_OK);
+
     return true;
 }
 
@@ -64,6 +68,8 @@ bool VM::DestroyContext(uint32_t ref) {
     } else {
         pcontext.Reset();
         contexts.erase(ref);
+        Local<String> tt = String::NewFromUtf8(isolate, "context destroyed");
+        Report(isolate, tt, OP_OK);
         return true;
     }
 }
