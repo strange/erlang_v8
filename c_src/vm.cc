@@ -5,8 +5,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "libplatform/libplatform.h"
+#include "v8.h"
 
 #include "report.h"
 #include "debug.h"

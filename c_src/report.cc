@@ -3,8 +3,8 @@
 #include <unistd.h>
 #include <iostream>
 
-#include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "libplatform/libplatform.h"
+#include "v8.h"
 
 #include "debug.h"
 #include "packet.h"

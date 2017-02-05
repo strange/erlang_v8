@@ -9,6 +9,8 @@ erl_crash.dump
 /lib
 /priv
 
+erlang_v8.d
+
 /c_src/test
 /c_src/include
 /c_src/env.mk

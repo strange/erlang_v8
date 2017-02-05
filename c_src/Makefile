@@ -12,33 +12,33 @@ ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 LIB_DIR := $(ROOT_DIR)/../lib
 PRIV_DIR := $(ROOT_DIR)/../priv
 
-DEPOT_REF := c6787971b576148c94d8dc11dc3d28e88c971995
+DEPOT_REF := 85adaa343e5e9f499e59bd0cb98d02cc2fc9d2d5
 DEPOT_DIR := $(LIB_DIR)/depot_tools
-
-V8_REF := 07234f240d2c346ee00e6a1c5a57b6ae861be6b3
-V8_DIR := $(LIB_DIR)/v8
-V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
 
 TARGET_BIN := $(PRIV_DIR)/erlang_v8
 TARGET_SRC := erlang_v8.cc report.cc vm.cc
 
-GYPFLAGS := -Dv8_use_external_startup_data=0
+V8_REF := 7c79736019c9a0b9ef03f64ab26e46bb98692abf
+V8_DIR := $(LIB_DIR)/v8
+V8_LIB := $(V8_DIR)/out.gn/$(BUILD_ARCH).release
+V8_LIB_RPATH := $(realpath --relative-to=$(TARGET_BIN) $(V8_LIB))
+
+V8_LIB_RPATH := '$$ORIGIN'/../lib/$(subst $(LIB_DIR)/,,$(V8_LIB))
 
 export PATH := $(PATH):$(DEPOT_DIR)
 
-.PHONY: all v8 local-clean local-clean-all
+.PHONY: all v8 clean distclean local-clean local-distclean
 
 all:: v8 
 
 clean:: local-clean
 
-distclean:: local-clean-all
+distclean:: local-distclean
 
 local-clean:
 	rm -rf $(TARGET_BIN)
 
-local-clean-all:
-	rm -rf $(TARGET_BIN)
+local-distclean: local-clean
 	rm -rf $(LIB_DIR)
 
 v8: $(TARGET_BIN)
@@ -51,7 +51,8 @@ $(PRIV_DIR):
 
 $(DEPOT_DIR): $(LIB_DIR)
 ifeq ($(wildcard $(DEPOT_DIR)),)
-	cd $(LIB_DIR) && git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git;
+	cd $(LIB_DIR) && git clone \
+		https://chromium.googlesource.com/chromium/tools/depot_tools.git;
 	cd $(DEPOT_DIR) && git reset --hard $(DEPOT_REF)
 endif
 
@@ -62,18 +63,13 @@ ifeq ($(wildcard $(V8_DIR)),)
 	cd $(V8_DIR) && git reset --hard $(V8_REF)
 endif
 
-GYPFLAGS ?=
-GYPFLAGS += -Dlinux_use_bundled_gold=0
-GYPFLAGS += -Dlinux_use_bundled_binutils=0
-GYPFLAGS += -Dv8_use_external_startup_data=0
-
-$(V8_LIB)/obj.target/src/libv8_base.a: $(V8_DIR)
+$(V8_LIB)/libv8_libbase.a: $(V8_DIR)
 	@cd $(V8_DIR) && ./tools/dev/v8gen.py $(BUILD_ARCH).release
-	@cd $(V8_DIR) && make $(BUILD_ARCH).release -j4 werror=no GYPFLAGS="$(GYPFLAGS)"
+	@cd $(V8_DIR) && gn gen out.gn/$(BUILD_ARCH).release --args='target_cpu="$(BUILD_ARCH)" v8_use_snapshot=true is_component_build=true is_debug=false v8_enable_inspector=false v8_enable_i18n_support=true v8_use_external_startup_data=false'
+	@cd $(V8_DIR) && ninja -C out.gn/$(BUILD_ARCH).release d8
 	@touch $@
-	# ninja -C $(V8_DIR)/out.gn/$(BUILD_ARCH).release
 
-$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/obj.target/src/libv8_base.a
+$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/libv8_libbase.a
 ifeq ($(OS),Darwin)
 	# We need to link libstdc++ as XCode defaults to libc++, and use slightly
 	# different flags, on OS X. The following assumes Mavericks, XCode and
@@ -88,15 +84,15 @@ ifeq ($(OS),Darwin)
 		$(V8_LIB)/libicu{uc,i18n,data}.a \
 		-lpthread
 else
-	g++ -I$(V8_DIR) -I$(V8_DIR)/include \
+	g++ \
+		-I$(V8_DIR)/include \
 		$(TARGET_SRC) \
 		-o $(TARGET_BIN) \
-		-Wno-unused-variable \
-		-Wl,--start-group \
-		$(V8_LIB)/obj.target/{src/libv8_{base,libbase,snapshot,libplatform,libsampler},third_party/icu/libicu{uc,i18n}}.a \
-		-Wl,--end-group \
+		-Wl,$(V8_LIB)/libv8{,_libbase,_libplatform}.so \
+		-Wl,$(V8_LIB)/libicu{uc,i18n}.so \
+		-Wl,-rpath,$(V8_LIB_RPATH) \
 		-lrt \
 		-ldl \
 		-pthread \
-		-std=c++0x
+		-std=c++11
 endif

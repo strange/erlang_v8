@@ -2,8 +2,8 @@
 #include <string.h>
 #include <iostream>
 
-#include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "libplatform/libplatform.h"
+#include "v8.h"
 
 #include "vm.h"
 #include "erlang_v8.h"
@@ -123,7 +123,8 @@ int main(int argc, char* argv[]) {
     Platform* platform = v8::platform::CreateDefaultPlatform();
 
     V8::InitializeICUDefaultLocation(argv[0]);
-    V8::InitializeExternalStartupData(argv[0]); 
+    // V8::InitializeExternalStartupData(argv[0]);
+
 
     V8::InitializePlatform(platform);
     V8::Initialize();
