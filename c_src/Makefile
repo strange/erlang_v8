@@ -58,8 +58,7 @@ endif
 
 $(V8_DIR): $(LIB_DIR) $(DEPOT_DIR)
 ifeq ($(wildcard $(V8_DIR)),)
-	cd $(LIB_DIR) && $(DEPOT_DIR)/fetch --no-history v8 
-	cd $(V8_DIR) && git fetch origin $(V8_REF)
+	cd $(LIB_DIR) && $(DEPOT_DIR)/fetch v8 
 	cd $(V8_DIR) && git reset --hard $(V8_REF)
 endif
 
