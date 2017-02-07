@@ -23,7 +23,7 @@ V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out.gn/$(BUILD_ARCH).release
 V8_LIB_RPATH := $(realpath --relative-to=$(TARGET_BIN) $(V8_LIB))
 
-V8_LIB_RPATH := '$$ORIGIN'/../lib/$(subst $(LIB_DIR)/,,$(V8_LIB))
+V8_LIB_RPATH := '$$ORIGIN'/.
 
 export PATH := $(PATH):$(DEPOT_DIR)
 
@@ -62,13 +62,14 @@ ifeq ($(wildcard $(V8_DIR)),)
 	cd $(V8_DIR) && git reset --hard $(V8_REF)
 endif
 
-$(V8_LIB)/libv8_libbase.a: $(V8_DIR)
+$(PRIV_DIR)/libv8_libbase.so: $(V8_DIR)
 	@cd $(V8_DIR) && ./tools/dev/v8gen.py $(BUILD_ARCH).release
 	@cd $(V8_DIR) && gn gen out.gn/$(BUILD_ARCH).release --args='target_cpu="$(BUILD_ARCH)" v8_use_snapshot=true is_component_build=true is_debug=false v8_enable_inspector=false v8_enable_i18n_support=true v8_use_external_startup_data=false'
 	@cd $(V8_DIR) && ninja -C out.gn/$(BUILD_ARCH).release d8
+	@cp $(V8_LIB)/*.so $(PRIV_DIR)
 	@touch $@
 
-$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/libv8_libbase.a
+$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(PRIV_DIR)/libv8_libbase.so
 ifeq ($(OS),Darwin)
 	# We need to link libstdc++ as XCode defaults to libc++, and use slightly
 	# different flags, on OS X. The following assumes Mavericks, XCode and
@@ -87,8 +88,8 @@ else
 		-I$(V8_DIR)/include \
 		$(TARGET_SRC) \
 		-o $(TARGET_BIN) \
-		-Wl,$(V8_LIB)/libv8{,_libbase,_libplatform}.so \
-		-Wl,$(V8_LIB)/libicu{uc,i18n}.so \
+		-Wl,$(PRIV_DIR)/libv8{,_libbase,_libplatform}.so \
+		-Wl,$(PRIV_DIR)/libicu{uc,i18n}.so \
 		-Wl,-rpath,$(V8_LIB_RPATH) \
 		-lrt \
 		-ldl \
