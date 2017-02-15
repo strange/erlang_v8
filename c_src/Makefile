@@ -9,7 +9,7 @@ BUILD_ARCH := $(BUILD_ARCH_$(ARCH))
 
 ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-LIB_DIR := $(ROOT_DIR)/../lib
+LIB_DIR := $(ROOT_DIR)/../build
 PRIV_DIR := $(ROOT_DIR)/../priv
 
 DEPOT_REF := 85adaa343e5e9f499e59bd0cb98d02cc2fc9d2d5
