@@ -2,8 +2,8 @@
 #include <string.h>
 #include <iostream>
 
-#include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "libplatform/libplatform.h"
+#include "v8.h"
 
 #include "vm.h"
 #include "erlang_v8.h"
@@ -53,11 +53,11 @@ bool NextPacket(Packet* packet) {
     string buf;
     buf.resize(len);
 
-    for (int bytes_read = 0; bytes_read < len;) {                                                  
+    for (int bytes_read = 0; bytes_read < len;) {
         if (!cin.read(&buf[bytes_read], len - bytes_read)) {
             return false;
         }
-        bytes_read += cin.gcount();                                                                  
+        bytes_read += cin.gcount();
     }
 
     // extract the one-byte op code from the message and erase it from the
@@ -67,7 +67,6 @@ bool NextPacket(Packet* packet) {
 
     ref = (((uint8_t)buf[0] << 24) | ((uint8_t)buf[1] << 16) |
             ((uint8_t)buf[2] << 8) | (uint8_t)buf[3]);
-
     buf.erase(0, 4);
 
     packet->op = op;

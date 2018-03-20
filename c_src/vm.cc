@@ -5,8 +5,8 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "include/libplatform/libplatform.h"
-#include "include/v8.h"
+#include "libplatform/libplatform.h"
+#include "v8.h"
 
 #include "report.h"
 #include "debug.h"
@@ -23,15 +23,15 @@ struct TimeoutHandlerArgs {
 
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
-    TRACE("Timeout started.\n");
-    usleep(1000000);
-    TRACE("After sleep,\n");
+
+    FTRACE("Timeout handler started: %i\n", args->timeout);
+    usleep(args->timeout * 1000);
+    TRACE("Timeout expired. Terminating execution.\n");
 
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0x00);
 
     args->vm->TerminateExecution();
-    args->vm->PumpMessageLoop();
 
     return NULL;
 }
@@ -52,6 +52,10 @@ bool VM::CreateContext(uint32_t ref) {
     Context::Scope context_scope(context);
 
     contexts[ref] = pcontext;
+
+    Local<String> tt = String::NewFromUtf8(isolate, "context created");
+    Report(isolate, tt, OP_OK);
+
     return true;
 }
 
@@ -64,6 +68,8 @@ bool VM::DestroyContext(uint32_t ref) {
     } else {
         pcontext.Reset();
         contexts.erase(ref);
+        Local<String> tt = String::NewFromUtf8(isolate, "context destroyed");
+        Report(isolate, tt, OP_OK);
         return true;
     }
 }
@@ -95,7 +101,7 @@ void VM::Eval(Packet* packet) {
             contexts[packet->ref]);
 
     if (context.IsEmpty()) {
-        Local<String> tt = String::NewFromUtf8(isolate, "empty contextz");
+        Local<String> tt = String::NewFromUtf8(isolate, "empty context");
         Report(isolate, tt, OP_INVALID_CONTEXT);
     } else {
         Context::Scope context_scope(context);
@@ -107,8 +113,11 @@ void VM::Eval(Packet* packet) {
             JSON::Parse(context, json_data).ToLocalChecked()
         );
 
+        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout");
         Local<String> source_key = String::NewFromUtf8(isolate, "source");
+
         Local<String> source = instructions->Get(source_key)->ToString();
+        Local<Integer> timeout = instructions->Get(timeout_key)->ToInteger();
 
         Local<Script> script = Script::Compile(source);
 
@@ -118,12 +127,12 @@ void VM::Eval(Packet* packet) {
         } else {
             pthread_t t;
             void *res;
-            struct TimeoutHandlerArgs args = {
+            struct TimeoutHandlerArgs timeout_handler_args = {
                 this,
-                (long)1
+                (long)timeout->Int32Value()
             };
 
-            pthread_create(&t, NULL, TimeoutHandler, &args);
+            pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
 
             Local<Value> result = script->Run();
 
@@ -135,14 +144,13 @@ void VM::Eval(Packet* packet) {
             if (result.IsEmpty()) {
                 assert(try_catch.HasCaught());
                 if (try_catch.Message().IsEmpty() && try_catch.StackTrace().IsEmpty()) {
-                    TRACE("It's a timeout!\n");
+                    TRACE("Execution timed out.\n");
                     Local<String> tt = String::NewFromUtf8(isolate, "timeout");
                     Report(isolate, tt, OP_TIMEOUT);
                 } else {
-                    TRACE("It's a regular error\n");
+                    TRACE("Regular error\n");
                     ReportException(isolate, &try_catch);
                 }
-                FTRACE("Replacing context: %i\n", packet->ref);
                 // vm.CreateContext(packet->ref);
             } else {
                 ReportOK(isolate, result);
@@ -161,7 +169,7 @@ void VM::Call(Packet* packet) {
             contexts[packet->ref]);
 
     if (context.IsEmpty()) {
-        Local<Value> tt = String::NewFromUtf8(isolate, "empty contextz");
+        Local<Value> tt = String::NewFromUtf8(isolate, "empty context");
         Report(isolate, tt, OP_INVALID_CONTEXT);
     } else {
         Context::Scope context_scope(context);
@@ -176,9 +184,11 @@ void VM::Call(Packet* packet) {
         Local<String> function_key = String::NewFromUtf8(isolate, "function");
         Local<String> function_name = instructions->Get(function_key)->ToString();
 
+        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout");
         Local<String> args_key = String::NewFromUtf8(isolate, "args");
         Local<Value> args_value = instructions->Get(args_key);
         Local<Array> raw_args = Local<Array>::Cast(args_value);
+        Local<Integer> timeout = instructions->Get(timeout_key)->ToInteger();
 
         int len = raw_args->Length();
         Local<Value> *args = new Local<Value>[len];
@@ -198,7 +208,20 @@ void VM::Call(Packet* packet) {
         Local<String> source = String::Concat(String::Concat(prefix,
                     function_name), suffix);
         Local<Script> script = Script::Compile(source);
+
+        pthread_t t;
+        void *res;
+        struct TimeoutHandlerArgs timeout_handler_args = {
+            this,
+            (long)timeout->Int32Value()
+        };
+
+        pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
+
         Local<Value> eval_result = script->Run();
+
+        pthread_cancel(t);
+        pthread_join(t, &res);
 
         if (eval_result.IsEmpty()) {
             assert(try_catch.HasCaught());

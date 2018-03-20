@@ -1,48 +1,27 @@
-# Stuff
-
-    erlang_v8_vm_sup + hash_ring
-    erlang_v8_vm
-
-    PROC1 -> OS1
-    PROC2 -> OS2
-
-    {ok, Context} = create_context().
-    {ok, Value} = eval(Context, Source).
-    {ok, Value} = call(Context, Fun, Args).
-    ok = destroy_context(Context).
-
-1. Send timeouts to os proc
-2. Report invalid contexts
-3. Collect "dead" contexts
-4. Create base-context pre-initialized with code from erlang
-
-Requires libtinfo.
-
 # `erlang_v8`
 
 Run JavaScript from Erlang in an external OS process.
 
-This is just an experiment to see if embedding v8 in an actual OS process is
-more predictable than using a port driver or NIF. I will give the project
-proper attention if the experiment works out.
+This is an experiment to see if embedding v8 in an actual OS process is more
+predictable than using a port driver or NIF. I will give the project proper
+attention if the experiment works out.
 
 The most notable features: 
 
 - You can `eval/3` things like "while (true) {}" with a timeout and have the
-  v8 VM actually terminate when it times out (the OS process is killed and
-  restarted).
-- The context of the VM can then be reset (the current implementation is
-  pretty naive; I'm working on a more elegant solution). This is useful when
-  you want multiple parties to share the same VM(s).
+  v8 VM actually terminate when it times out.
+- Multiple separate contexts per VM. This is useful when you want multiple
+  parties to share the same VM(s).
 - A VM can be initialized with pre-defined source that's loaded into the OS
-  process and automatically evaluated when the VM is reset or restarted.
+  process and available in all contexts.
 
 I'm also planning two-way communication (i.e. passing messages back to the
 controlling process from JS) and a few other things.
 
 ## Building
 
-Subversion, and Python 2.6-2.7 (needed by GYP) are required to build v8.
+Subversion, pkg-config, libtinfo and Python 2.6-2.7 (needed by GYP) are
+required to build v8.
 
 Build using make:
 
@@ -66,39 +45,42 @@ Start a VM:
 
     {ok, VM} = erlang_v8:start_vm().
 
+Create a context:
+
+    {ok, Context} = erlang_v8:create_context(VM).
+
 Define a function:
 
     {ok, undefined} =
-        erlang_v8:eval(VM, <<"function sum(a, b) { return a + b }">>).
+        erlang_v8:eval(VM, Context, <<"function sum(a, b) { return a + b }">>).
 
 Call the function: 
 
-    {ok, 2} = erlang_v8:call(VM, <<"sum">>, [1, 1]).
+    {ok, 2} = erlang_v8:call(VM, Context, <<"sum">>, [1, 1]).
 
-You can reset the VM:
+Destroy the Context:
 
-    ok = erlang_v8:reset_vm(VM).
-    {error, <<"ReferenceError: sum is not defined">>} =
-        erlang_v8:call(VM, <<"sum">>, [1, 1]).
+    erlang_v8:destroy_context(VM, Context).
 
 Stop the VM:
 
     ok = erlang_v8:stop_vm(VM).
 
-VMs can be initialized with code that is automatically reloaded when the VM is
-reset or restarted:
+VMs can be initialized with code that is automatically available in all
+contexts:
 
     {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1;">>}]).
+    {ok, Context1} = erlang_v8:create_context(VM).
 
-    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
+    {ok, 1} = erlang_v8:eval(VM, Context1, <<"x;">>).
+    {ok, 2} = erlang_v8:eval(VM, Context1, <<"x = 2;">>).
+    {ok, 2} = erlang_v8:eval(VM, Context1, <<"x;">>).
 
-    ok = erlang_v8:reset_vm(VM).
-    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
+    {ok, Context2} = erlang_v8:create_context(VM).
+    {ok, 1} = erlang_v8:eval(VM, Context2, <<"x;">>).
 
-    {ok, 2} = erlang_v8:eval(VM, <<"x = 2;">>).
-    {ok, 2} = erlang_v8:eval(VM, <<"x;">>).
-    ok = erlang_v8:reset_vm(VM).
-    {ok, 1} = erlang_v8:eval(VM, <<"x;">>).
+    erlang_v8:destroy_context(VM, Context1).
+    erlang_v8:destroy_context(VM, Context2).
 
     ok = erlang_v8:stop_vm(VM).
 
@@ -108,7 +90,7 @@ You can also initialize the VMs using paths to source files:
 
 Set a custom timeout (defaults to `5000`):
 
-    {error, timeout} =  erlang_v8:eval(VM, <<"while (true) {}">>, 500).
+    {error, timeout} =  erlang_v8:eval(VM, Context, <<"while (true) {}">>, 500).
 
 ## Pooling
 
@@ -128,3 +110,4 @@ framework that, among other things, implements a pool.
 - Use custom protocol to support more data types (binary, dates etc
 - Refactor the API
 - Experiment with calling Erlang from v8 synchronously
+- Build on OS X again

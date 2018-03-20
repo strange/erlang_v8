@@ -13,15 +13,12 @@
 -export([errors/1]).
 -export([timeout/1]).
 -export([contexts/1]).
--export([reset/1]).
--export([restart/1]).
--export([single_source/1]).
--export([multi_source/1]).
--export([file_source/1]).
--export([multiple_eval_with_reset/1]).
+-export([init_from_source/1]).
+-export([init_from_file/1]).
 -export([multiple_vms/1]).
 -export([big_input/1]).
 -export([performance/1]).
+-export([dead_proc/1]).
 -export([escaped_control_characters/1]).
 
 %% Callbacks
@@ -35,15 +32,12 @@ all() ->
         nested_return_type,
         errors,
         contexts,
-        %% reset
-        %% restart,
-        single_source,
-        %% multi_source
-        %% file_source,
-        %% multiple_eval_with_reset,
-        %% multiple_vms,
-        %% performance,
-        %% big_input,
+        init_from_source,
+        init_from_file,
+        multiple_vms,
+        performance,
+        big_input,
+        dead_proc,
         escaped_control_characters
     ].
 
@@ -131,7 +125,7 @@ timeout(_Config) ->
     {ok, undefined} = erlang_v8:eval(VM, Context1, <<"var x = 1;">>),
     {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
 
-    {error, timeout} = erlang_v8:eval(VM, Context2, <<"while (true) {}">>, 100),
+    {error, timeout} = erlang_v8:eval(VM, Context2, <<"while (true) {}">>),
 
     {ok, 1} = erlang_v8:eval(VM, Context1, <<"x">>),
 
@@ -202,123 +196,59 @@ contexts(_Config) ->
 
     ok.
 
-reset(_Config) ->
-    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
-
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-    erlang_v8:reset_vm(P),
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-
-    {ok, <<"no">>} = erlang_v8:eval(P, <<"erlang_v8 = 'no';">>),
-    erlang_v8:reset_vm(P),
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-
-    {ok, <<"test">>} = erlang_v8:eval(P, <<"String.imposter = 'test';">>),
-    erlang_v8:reset_vm(P),
-    {ok, undefined} = erlang_v8:eval(P, <<"String.imposter">>),
-
-    {ok, undefined} =
-        erlang_v8:eval(P, <<"function sum(a, b) { return a + b }">>),
-    {ok, 2} = erlang_v8:call(P, <<"sum">>, [1, 1]),
-
-    erlang_v8:reset_vm(P),
-
-    {error, <<"ReferenceError: sum is not defined", _/binary>>} =
-        erlang_v8:call(P, <<"sum">>, [1, 1]),
-
-    erlang_v8:stop_vm(P),
-    ok.
-
-restart(_Config) ->
-    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
-
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-    erlang_v8:restart_vm(P),
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-
-    {ok, <<"no">>} = erlang_v8:eval(P, <<"erlang_v8 = 'no';">>),
-    erlang_v8:restart_vm(P),
-    {ok, <<"yes">>} = erlang_v8:eval(P, <<"erlang_v8">>),
-
-    {ok, <<"test">>} = erlang_v8:eval(P, <<"String.imposter = 'test';">>),
-    erlang_v8:restart_vm(P),
-    {ok, undefined} = erlang_v8:eval(P, <<"String.imposter">>),
-
-    {ok, undefined} =
-        erlang_v8:eval(P, <<"function sum(a, b) { return a + b }">>),
-    {ok, 2} = erlang_v8:call(P, <<"sum">>, [1, 1]),
-
-    erlang_v8:restart_vm(P),
-
-    {error, <<"ReferenceError: sum is not defined", _/binary>>} =
-        erlang_v8:call(P, <<"sum">>, [1, 1]),
-
-    erlang_v8:stop_vm(P),
-    ok.
-
-single_source(_Config) ->
+init_from_source(_Config) ->
     {ok, VM} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
     {ok, Context} = erlang_v8_vm:create_context(VM),
 
     {ok, <<"yes">>} = erlang_v8:eval(VM, Context, <<"erlang_v8">>),
+    {ok, <<"no">>} = erlang_v8:eval(VM, Context, <<"erlang_v8 = 'no'">>),
+    {ok, <<"no">>} = erlang_v8:eval(VM, Context, <<"erlang_v8">>),
+
+    {ok, Context2} = erlang_v8_vm:create_context(VM),
+    {ok, <<"yes">>} = erlang_v8:eval(VM, Context2, <<"erlang_v8">>),
 
     erlang_v8_vm:destroy_context(VM, Context),
-    erlang_v8:stop_vm(VM),
-    ok.
-
-multi_source(_Config) ->
-    {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1; var y = 2;">>}]),
-
-    {ok, Context} = erlang_v8_vm:create_context(VM),
-
-    {ok, 1} = erlang_v8:eval(VM, Context, <<"x;">>),
-    {ok, 2} = erlang_v8:eval(VM, Context, <<"y;">>),
-
-    erlang_v8:restart_vm(VM),
-
-    {ok, 1} = erlang_v8:eval(VM, Context, <<"x;">>),
-    {ok, 2} = erlang_v8:eval(VM, Context, <<"y;">>),
-
-    ok = erlang_v8_vm:destroy_context(VM, Context),
+    erlang_v8_vm:destroy_context(VM, Context2),
 
     erlang_v8:stop_vm(VM),
     ok.
 
-file_source(_Config) ->
+init_from_file(_Config) ->
     Directory = filename:dirname(code:which(?MODULE)),
     Path = filename:join(Directory, "js/variables.js"),
-    {ok, P} = erlang_v8:start_vm([{file, Path}]),
-    {ok, 3} = erlang_v8:eval(P, <<"z;">>),
-    erlang_v8:reset_vm(P),
-    {ok, 3} = erlang_v8:eval(P, <<"z;">>),
-    erlang_v8:stop_vm(P),
-    ok.
+    {ok, VM} = erlang_v8:start_vm([{file, Path}]),
+    {ok, Context} = erlang_v8_vm:create_context(VM),
 
-multiple_eval_with_reset(_Config) ->
-    {ok, P} = erlang_v8:start_vm([{source, <<"var erlang_v8 = 'yes';">>}]),
-    [begin
-         {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
-         {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
-         {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
-         {ok, 2} = erlang_v8:eval(P, <<"1 + 1">>),
-         erlang_v8:reset_vm(P)
-     end || _ <- lists:seq(0, 1)],
-    erlang_v8:stop_vm(P),
+    {ok, 3} = erlang_v8:eval(VM, Context, <<"z;">>),
+
+    erlang_v8_vm:destroy_context(VM, Context),
+
+    erlang_v8:stop_vm(VM),
     ok.
 
 multiple_vms(_Config) ->
     {ok, VM1} = erlang_v8:start_vm(),
     {ok, VM2} = erlang_v8:start_vm(),
-    {ok, undefined} = erlang_v8:eval(VM1, <<"var x = 1;">>),
-    {ok, undefined} = erlang_v8:eval(VM2, <<"var x = 2;">>),
-    {ok, 1} = erlang_v8:eval(VM1, <<"x;">>),
-    {ok, 2} = erlang_v8:eval(VM2, <<"x;">>),
+
+    {ok, Context1} = erlang_v8_vm:create_context(VM1),
+    {ok, Context2} = erlang_v8_vm:create_context(VM2),
+
+    {ok, undefined} = erlang_v8:eval(VM1, Context1, <<"var x = 1;">>),
+    {ok, undefined} = erlang_v8:eval(VM2, Context2, <<"var x = 2;">>),
+
+    {ok, 1} = erlang_v8:eval(VM1, Context1, <<"x;">>),
+    {ok, 2} = erlang_v8:eval(VM2, Context2, <<"x;">>),
+
+    erlang_v8_vm:destroy_context(VM1, Context1),
+    erlang_v8_vm:destroy_context(VM2, Context2),
+
     ok = erlang_v8:stop_vm(VM1),
     ok = erlang_v8:stop_vm(VM2),
+
     ok.
 
 big_input(_Config) ->
-    {ok, VM} = erlang_v8:start_vm([{max_source_size, 1000}]),
+    {ok, VM} = erlang_v8:start_vm([{max_source_size, 5000}]),
 
     {ok, Context} = erlang_v8_vm:create_context(VM),
 
@@ -327,7 +257,7 @@ big_input(_Config) ->
     }">>),
 
     {error, invalid_source_size} = erlang_v8:call(VM, Context, <<"call">>,
-                                                  [random_bytes(1000)]),
+                                                  [random_bytes(5000)]),
 
     {ok, _} = erlang_v8:call(VM, Context, <<"call">>, [random_bytes(500)]),
 
@@ -355,7 +285,8 @@ performance(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
     {ok, Context} = erlang_v8_vm:create_context(P),
-    {ok, undefined} = erlang_v8:eval(P, Context, <<"function retval(i) { return i; }">>),
+    {ok, undefined} = erlang_v8:eval(P, Context,
+                                     <<"function retval(i) { return i; }">>),
 
     [{ok, I} = erlang_v8:call(P, Context, <<"retval">>, [I]) ||
      I <- lists:seq(0, 999)],
@@ -365,7 +296,33 @@ performance(_Config) ->
     erlang_v8:stop_vm(P),
     ok.
 
+dead_proc(_Config) ->
+    {ok, P} = erlang_v8:start_vm(),
+
+    Parent = self(),
+    spawn(fun() ->
+        {ok, Context} = erlang_v8:create_context(P),
+        Parent ! Context
+    end),
+    receive
+        Context ->
+            {error, invalid_context} = erlang_v8_vm:destroy_context(P, Context)
+    end,
+
+    spawn(fun() ->
+        {ok, Context2} = erlang_v8:create_context(P),
+        ok = erlang_v8_vm:destroy_context(P, Context2),
+        Parent ! Context2
+    end),
+    receive
+        Context2 ->
+            {error, invalid_context} = erlang_v8_vm:destroy_context(P, Context2)
+    end,
+
+    erlang_v8:stop_vm(P),
+    ok.
+
 %% Helpers
 
 random_bytes(N) ->
-    list_to_binary([random:uniform(26) + 96 || _ <- lists:seq(0, N - 1)]).
+    list_to_binary([rand:uniform(26) + 96 || _ <- lists:seq(0, N - 1)]).

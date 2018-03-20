@@ -6,8 +6,10 @@ ebin/*
 erl_crash.dump
 /log
 /logs
-/lib
+/build
 /priv
+
+erlang_v8.d
 
 /c_src/test
 /c_src/include
