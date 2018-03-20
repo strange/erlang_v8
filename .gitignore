@@ -8,6 +8,7 @@ erl_crash.dump
 /logs
 /build
 /priv
+/lib
 
 erlang_v8.d
 
