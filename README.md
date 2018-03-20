@@ -6,7 +6,7 @@ This is an experiment to see if embedding v8 in an actual OS process is more
 predictable than using a port driver or NIF. I will give the project proper
 attention if the experiment works out.
 
-The most notable features: 
+The most notable features:
 
 - You can `eval/3` things like "while (true) {}" with a timeout and have the
   v8 VM actually terminate when it times out.
@@ -37,7 +37,7 @@ symlink `python2` to `~/bin` and set your path temporarily before compiling:
 
 You can run a few tests to verify basic functionality:
 
-    make tests
+    make test
 
 ## Usage
 
