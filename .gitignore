@@ -17,5 +17,4 @@ erlang_v8.d
 /c_src/env.mk
 /.erlang.mk
 
-/rebar.lock
 /_build
