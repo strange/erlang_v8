@@ -77,7 +77,7 @@ void VM::PumpMessageLoop() {
 }
 
 void VM::TerminateExecution() {
-    // v8::V8::TerminateExecution(isolate);
+    v8::V8::TerminateExecution(isolate);
     isolate->TerminateExecution();
     FTRACE("Isolate terminated: %i\n", 10);
 }
