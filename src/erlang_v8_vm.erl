@@ -86,9 +86,8 @@ stop(Pid) ->
 %% Callbacks
 
 init([Opts]) ->
-    random:seed(erlang:phash2([node()]),
-                erlang:monotonic_time(),
-                erlang:unique_integer()),
+    %% rand:seed(erlang:phash2([node()]), erlang:monotonic_time(),
+    %%           erlang:unique_integer()),
     State = start_port(parse_opts(Opts)),
     {ok, State}.
 

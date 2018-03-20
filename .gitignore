@@ -13,3 +13,6 @@ erl_crash.dump
 /c_src/include
 /c_src/env.mk
 /.erlang.mk
+
+/rebar.lock
+/_build

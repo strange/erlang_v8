@@ -77,7 +77,8 @@ void VM::PumpMessageLoop() {
 }
 
 void VM::TerminateExecution() {
-    V8::TerminateExecution(isolate);
+    // v8::V8::TerminateExecution(isolate);
+    isolate->TerminateExecution();
     FTRACE("Isolate terminated: %i\n", 10);
 }
 
@@ -102,7 +103,9 @@ void VM::Eval(Packet* packet) {
         string input = packet->data;
 
         Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
-        Local<Object> instructions = JSON::Parse(json_data)->ToObject();
+        Local<Object> instructions = Local<Object>::Cast(
+            JSON::Parse(context, json_data).ToLocalChecked()
+        );
 
         Local<String> source_key = String::NewFromUtf8(isolate, "source");
         Local<String> source = instructions->Get(source_key)->ToString();
@@ -164,7 +167,9 @@ void VM::Call(Packet* packet) {
         Context::Scope context_scope(context);
 
         Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
-        Local<Object> instructions = JSON::Parse(json_data)->ToObject();
+        Local<Object> instructions = Local<Object>::Cast(
+                JSON::Parse(context, json_data).ToLocalChecked()
+        );
 
         Local<Object> global = context->Global();
 

@@ -1,5 +1,3 @@
-SHELL = /bin/bash
-
 ARCH := $(shell getconf LONG_BIT)
 OS := $(shell uname)
 
@@ -12,23 +10,21 @@ ROOT_DIR := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 LIB_DIR := $(ROOT_DIR)/../lib
 PRIV_DIR := $(ROOT_DIR)/../priv
 
-DEPOT_REF := ee496a9b4de3bb5a02ba76fd2815a0bf27b2e850
 DEPOT_DIR := $(LIB_DIR)/depot_tools
 
-V8_REF := ad08a4cd49313cae01a8c1b5e5b2e477b6c1d2e3
+V8_VERSION := "5.9.211.33"
 V8_DIR := $(LIB_DIR)/v8
-V8_LIB := $(V8_DIR)/out/$(BUILD_ARCH).release
+V8_LIB := $(V8_DIR)/out.gn/$(BUILD_ARCH).release/obj
 
 TARGET_BIN := $(PRIV_DIR)/erlang_v8
 TARGET_SRC := erlang_v8.cc report.cc vm.cc
 
-GYPFLAGS := -Dv8_use_external_startup_data=0
-
-export PATH := $(PATH):$(DEPOT_DIR)
+PATH := $(PATH):$(DEPOT_DIR)
+SHELL := /bin/bash
 
 .PHONY: all v8 local-clean local-clean-all
 
-all:: v8 
+all:: v8
 
 clean:: local-clean
 
@@ -41,7 +37,7 @@ local-clean-all:
 	rm -rf $(TARGET_BIN)
 	rm -rf $(LIB_DIR)
 
-v8: $(TARGET_BIN)
+v8: $(TARGET_BIN) $(PRIV_DIR)/natives_blob.bin $(PRIV_DIR)/snapshot_blob.bin $(PRIV_DIR)/icudtl.dat
 
 $(LIB_DIR):
 	mkdir -p $(LIB_DIR)
@@ -52,26 +48,31 @@ $(PRIV_DIR):
 $(DEPOT_DIR): $(LIB_DIR)
 ifeq ($(wildcard $(DEPOT_DIR)),)
 	cd $(LIB_DIR) && git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git;
-	cd $(DEPOT_DIR) && git reset --hard $(DEPOT_REF)
 endif
 
 $(V8_DIR): $(LIB_DIR) $(DEPOT_DIR)
 ifeq ($(wildcard $(V8_DIR)),)
-	cd $(LIB_DIR) && $(DEPOT_DIR)/fetch --no-history v8 
-	cd $(V8_DIR) && git fetch origin $(V8_REF)
-	cd $(V8_DIR) && git reset --hard $(V8_REF)
+	@echo $(LIB_DIR)
+	@cd $(LIB_DIR) && $(DEPOT_DIR)/fetch v8
 endif
 
-GYPFLAGS ?=
-GYPFLAGS += -Dlinux_use_bundled_gold=0
-GYPFLAGS += -Dlinux_use_bundled_binutils=0
-GYPFLAGS += -Dv8_use_external_startup_data=0
-
-$(V8_LIB)/obj.target/tools/gyp/libv8_base.a: $(V8_DIR)
-	@cd $(V8_DIR) && make $(BUILD_ARCH).release -j4 werror=no GYPFLAGS="$(GYPFLAGS)"
+$(V8_LIB)/libv8_base.a: $(V8_DIR)
+	cd $(LIB_DIR) && gclient sync --revision $(V8_VERSION)
+	cd $(V8_DIR) && tools/dev/v8gen.py -vv $(BUILD_ARCH).release
+	cd $(V8_DIR) && gn gen "--args=is_component_build = false is_debug = false v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
+	cd $(V8_DIR) && $(DEPOT_DIR)/ninja -C out.gn/$(BUILD_ARCH).release
 	@touch $@
 
-$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/obj.target/tools/gyp/libv8_base.a
+$(PRIV_DIR)/natives_blob.bin: $(V8_LIB)/libv8_base.a
+	cp $(V8_LIB)/../natives_blob.bin $(PRIV_DIR)
+
+$(PRIV_DIR)/snapshot_blob.bin: $(V8_LIB)/libv8_base.a
+	cp $(V8_LIB)/../snapshot_blob.bin $(PRIV_DIR)
+
+$(PRIV_DIR)/icudtl.dat: $(V8_LIB)/libv8_base.a
+	cp $(V8_LIB)/../icudtl.dat $(PRIV_DIR)
+
+$(TARGET_BIN): $(PRIV_DIR) $(TARGET_SRC) $(V8_LIB)/libv8_base.a
 ifeq ($(OS),Darwin)
 	# We need to link libstdc++ as XCode defaults to libc++, and use slightly
 	# different flags, on OS X. The following assumes Mavericks, XCode and
@@ -82,8 +83,8 @@ ifeq ($(OS),Darwin)
 		-stdlib=libstdc++ \
 		-std=c++0x \
 		-o $(TARGET_BIN) \
-		$(V8_LIB)/libv8_{base,libbase,snapshot,libplatform}.a \
-		$(V8_LIB)/libicu{uc,i18n,data}.a \
+		$(V8_LIB)/libv8_{base,libbase,external_snapshot,libplatform,libsampler}.a \
+		$(V8_LIB)/libicu{uc,i18n}.a \
 		-lpthread
 else
 	g++ -I$(V8_DIR) \
@@ -91,7 +92,7 @@ else
 		-o $(TARGET_BIN) \
 		-Wno-unused-variable \
 		-Wl,--start-group \
-		$(V8_LIB)/obj.target/{tools/gyp/libv8_{base,libbase,snapshot,libplatform},third_party/icu/libicu{uc,i18n,data}}.a \
+		$(V8_LIB)/{libv8_{base,libbase,external_snapshot,libplatform,libsampler},third_party/icu/libicu{uc,i18n},src/inspector/libinspector}.a \
 		-Wl,--end-group \
 		-lrt \
 		-ldl \
