@@ -18,3 +18,4 @@ erlang_v8.d
 /.erlang.mk
 
 /_build
+/.rebar3
