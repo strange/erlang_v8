@@ -20,15 +20,16 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 void Report(Isolate* isolate, Local<Value> response, uint8_t op) {
     uint32_t ref = 0;
 
+    Local<Context> context = isolate->GetCurrentContext();
     Local<String> input;
 
     if (response->IsUndefined()) {
         TRACE("Undefined");
         input = String::NewFromUtf8(isolate, "undefined").ToLocalChecked();
     } else if (response->IsString()) {
-        input = response;
+        input = response->ToString(context).ToLocalChecked();
     } else {
-        input = JSONStringify(isolate, response);
+        input = JSONStringify(isolate, response)->ToString(context).ToLocalChecked();
     }
 
     String::Utf8Value utf8 (isolate, input);
@@ -83,7 +84,7 @@ Local<Value> WrapError(Isolate* isolate, Local<Value> exception) {
     String::Utf8Value exception_string(isolate, exception);
     std::string from = std::string(*exception_string);
 
-    obj->Set(context, String::NewFromUtf8(isolate, "error").ToLocalChecked(),
+    Maybe<bool> ignored __attribute((unused)) = obj->Set(context, String::NewFromUtf8(isolate, "error").ToLocalChecked(),
              exception);
 
     // add line number and other fancy details ...
@@ -97,7 +98,7 @@ Local<Value> JSONStringify(Isolate* isolate, Local<Value> obj) {
     EscapableHandleScope handle_scope(isolate);
 
     MaybeLocal<Value> JSONValue = global->Get(context, String::NewFromUtf8(isolate, "JSON").ToLocalChecked());
-    Local<Object> JSON = JSONValue.ToLocalChecked();
+    Local<Object> JSON = JSONValue.ToLocalChecked()->ToObject(context).ToLocalChecked();
     Local<Function> stringify = Local<Function>::Cast(
             JSON->Get(context, String::NewFromUtf8(isolate, "stringify").ToLocalChecked()).ToLocalChecked());
 

@@ -53,7 +53,7 @@ bool NextPacket(Packet* packet) {
     string buf;
     buf.resize(len);
 
-    for (int bytes_read = 0; bytes_read < len;) {
+    for (size_t bytes_read = 0; bytes_read < len;) {
         if (!cin.read(&buf[bytes_read], len - bytes_read)) {
             return false;
         }
@@ -109,7 +109,8 @@ bool CommandLoop(VM& vm) {
                 break;
         }
         vm.PumpMessageLoop();
-        packet = (const Packet){ 0 };
+        packet.ref = 0;
+        //packet = (const Packet){ 0 };
     }
     Isolate::GetCurrent()->ContextDisposedNotification(); 
     return reset;
@@ -190,14 +191,13 @@ int main(int argc, char* argv[]) {
         source = NULL;
     }
 
-    Isolate* isolate = Isolate::New(params);
-
     StartupData snapshot = create_snapshot_data_blob(source);
 
     ArrayBufferAllocator allocator;
     params.snapshot_blob = &snapshot;
     params.array_buffer_allocator = &allocator;
 
+    Isolate* isolate = Isolate::New(params);
 
     VM vm(platform.get(), isolate);
     FTRACE("Initial VM: %p\n", &vm);

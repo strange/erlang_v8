@@ -24,8 +24,8 @@ struct TimeoutHandlerArgs {
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
 
-    FTRACE("Timeout handler started: %i\n", args->timeout);
-    usleep(args->timeout * 1000);
+    FTRACE("Timeout handler started: %li\n", args->timeout);
+    usleep((unsigned int)args->timeout * 1000);
     TRACE("Timeout expired. Terminating execution.\n");
 
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, 0x00);
@@ -90,7 +90,7 @@ void VM::TerminateExecution() {
 
 int VM::Size() {
     FTRACE("Context size: %zd\n", contexts.size());
-    return contexts.size();
+    return (int)contexts.size();
 }
 
 void VM::Eval(Packet* packet) {
@@ -116,8 +116,8 @@ void VM::Eval(Packet* packet) {
         Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout").ToLocalChecked();
         Local<String> source_key = String::NewFromUtf8(isolate, "source").ToLocalChecked();
 
-        Local<String> source = instructions->Get(context, source_key).ToLocalChecked();
-        Local<Integer> timeout = instructions->Get(context, timeout_key).ToLocalChecked();
+        Local<String> source = instructions->Get(context, source_key).ToLocalChecked()->ToString(context).ToLocalChecked();
+        Local<Integer> timeout = instructions->Get(context, timeout_key).ToLocalChecked()->ToInteger(context).ToLocalChecked();
 
         Local<Script> script = Script::Compile(context, source).ToLocalChecked();
 
@@ -182,13 +182,13 @@ void VM::Call(Packet* packet) {
         Local<Object> global = context->Global();
 
         Local<String> function_key = String::NewFromUtf8(isolate, "function").ToLocalChecked();
-        Local<String> function_name = instructions->Get(context, function_key).ToLocalChecked();
+        Local<String> function_name = instructions->Get(context, function_key).ToLocalChecked()->ToString(context).ToLocalChecked();
 
         Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout").ToLocalChecked();
         Local<String> args_key = String::NewFromUtf8(isolate, "args").ToLocalChecked();
         Local<Value> args_value = instructions->Get(context, args_key).ToLocalChecked();
         Local<Array> raw_args = Local<Array>::Cast(args_value);
-        Local<Integer> timeout = instructions->Get(context, timeout_key).ToLocalChecked();
+        Local<Integer> timeout = instructions->Get(context, timeout_key).ToLocalChecked()->ToInteger(context).ToLocalChecked();
 
         int len = raw_args->Length();
         Local<Value> *args = new Local<Value>[len];
