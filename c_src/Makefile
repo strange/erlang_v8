@@ -31,6 +31,8 @@ clean:: local-clean
 distclean:: local-distclean
 
 local-clean:
+	cd $(V8_DIR) && $(DEPOT_DIR)/ninja -C out.gn/$(BUILD_ARCH).release -t clean erlang_v8
+	rm $(V8_LIB)/libv8_base.a
 	rm -rf $(TARGET_BIN)
 
 local-distclean: local-clean
@@ -59,8 +61,8 @@ $(V8_LIB)/libv8_base.a: $(V8_DIR)
 	@echo "ROOT dir $(ROOT_DIR)"
 	#cd $(LIB_DIR) && gclient sync --revision $(V8_VERSION)
 	cd $(V8_DIR) && tools/dev/v8gen.py -vv $(BUILD_ARCH).release
-	cd $(V8_DIR) && gn gen "--args=is_component_build = false is_debug = false v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
-	cd $(V8_DIR) && $(DEPOT_DIR)/ninja -C out.gn/$(BUILD_ARCH).release
+	cd $(V8_DIR) && gn gen "--args=is_component_build = true is_debug = true v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
+	cd $(V8_DIR) && $(DEPOT_DIR)/ninja -C out.gn/$(BUILD_ARCH).release erlang_v8 v8_hello_world
 	@touch $@
 
 $(PRIV_DIR)/natives_blob.bin: $(V8_LIB)/libv8_base.a

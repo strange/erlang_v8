@@ -63,12 +63,15 @@ void ReportError(Isolate* isolate, Local<Value> response) {
 
 void ReportException(Isolate* isolate, TryCatch* try_catch) {
     HandleScope handle_scope(isolate);
+    TRACE("CTX\n");
     Local<Context> context = isolate->GetCurrentContext();
-    Local<Value> stack_trace = try_catch->StackTrace(context).ToLocalChecked();
+    TRACE("STACK\n");
+    MaybeLocal<Value> stack_trace = try_catch->StackTrace(context);
 
     if (stack_trace.IsEmpty()) {
         ReportError(isolate, try_catch->Exception());
     } else {
+        TRACE("CSTR\n");
         const char* st = ToCString(String::Utf8Value(isolate, try_catch->StackTrace(context).ToLocalChecked()));
         FTRACE("Stack: %s\n", st);
         ReportError(isolate, try_catch->StackTrace(context).ToLocalChecked());

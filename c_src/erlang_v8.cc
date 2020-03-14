@@ -191,11 +191,11 @@ int main(int argc, char* argv[]) {
         source = NULL;
     }
 
-    StartupData snapshot = create_snapshot_data_blob(source);
+    //StartupData snapshot = create_snapshot_data_blob(source);
 
-    ArrayBufferAllocator allocator;
-    params.snapshot_blob = &snapshot;
-    params.array_buffer_allocator = &allocator;
+    //params.snapshot_blob = &snapshot;
+    params.array_buffer_allocator =
+        v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 
     Isolate* isolate = Isolate::New(params);
 

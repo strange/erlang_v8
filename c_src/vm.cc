@@ -100,6 +100,7 @@ void VM::Eval(Packet* packet) {
     Local<Context> context = Local<Context>::New(isolate,
             contexts[packet->ref]);
 
+        TRACE("Marker \n");
     if (context.IsEmpty()) {
         Local<String> tt = String::NewFromUtf8(isolate, "empty context").ToLocalChecked();
         Report(isolate, tt, OP_INVALID_CONTEXT);
@@ -108,17 +109,20 @@ void VM::Eval(Packet* packet) {
 
         string input = packet->data;
 
+        TRACE("Marker\n");
         Local<String> json_data = String::NewFromUtf8(isolate, input.c_str()).ToLocalChecked();
         Local<Object> instructions = Local<Object>::Cast(
             JSON::Parse(context, json_data).ToLocalChecked()
         );
 
+        TRACE("Marker\n");
         Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout").ToLocalChecked();
         Local<String> source_key = String::NewFromUtf8(isolate, "source").ToLocalChecked();
 
         Local<String> source = instructions->Get(context, source_key).ToLocalChecked()->ToString(context).ToLocalChecked();
         Local<Integer> timeout = instructions->Get(context, timeout_key).ToLocalChecked()->ToInteger(context).ToLocalChecked();
 
+        TRACE("Marker\n");
         Local<Script> script = Script::Compile(context, source).ToLocalChecked();
 
         if (script.IsEmpty()) {
@@ -133,13 +137,14 @@ void VM::Eval(Packet* packet) {
             };
 
             pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
+            TRACE("Fork\n");
 
-            Local<Value> result = script->Run(context).ToLocalChecked();
+            MaybeLocal<Value> result = script->Run(context);
 
             pthread_cancel(t);
             pthread_join(t, &res);
 
-            // FTRACE("Join: %x\n", res);
+            FTRACE("Join: %p\n", res);
 
             if (result.IsEmpty()) {
                 assert(try_catch.HasCaught());
@@ -153,7 +158,7 @@ void VM::Eval(Packet* packet) {
                 }
                 // vm.CreateContext(packet->ref);
             } else {
-                ReportOK(isolate, result);
+                ReportOK(isolate, result.ToLocalChecked());
             }
         }
     }
@@ -217,11 +222,13 @@ void VM::Call(Packet* packet) {
         };
 
         pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
+        TRACE("Fork\n");
 
         Local<Value> eval_result = script->Run(context).ToLocalChecked();
 
         pthread_cancel(t);
         pthread_join(t, &res);
+        FTRACE("Join: %p\n", res);
 
         if (eval_result.IsEmpty()) {
             assert(try_catch.HasCaught());
