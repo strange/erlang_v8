@@ -41,6 +41,7 @@ VM::VM(Platform* platform_, Isolate* isolate_) {
     platform = platform_;
 }
 
+
 bool VM::CreateContext(uint32_t ref) {
     HandleScope handle_scope(isolate);
 
@@ -53,7 +54,7 @@ bool VM::CreateContext(uint32_t ref) {
 
     contexts[ref] = pcontext;
 
-    Local<String> tt = String::NewFromUtf8(isolate, "context created");
+    Local<String> tt = String::NewFromUtf8(isolate, "context created").ToLocalChecked();
     Report(isolate, tt, OP_OK);
 
     return true;
@@ -62,13 +63,13 @@ bool VM::CreateContext(uint32_t ref) {
 bool VM::DestroyContext(uint32_t ref) {
     Persistent<Context> pcontext (isolate, contexts[ref]);
     if (pcontext.IsEmpty()) {
-        Local<String> tt = String::NewFromUtf8(isolate, "empty contextz");
+        Local<String> tt = String::NewFromUtf8(isolate, "empty contextz").ToLocalChecked();
         Report(isolate, tt, OP_INVALID_CONTEXT);
         return false;
     } else {
         pcontext.Reset();
         contexts.erase(ref);
-        Local<String> tt = String::NewFromUtf8(isolate, "context destroyed");
+        Local<String> tt = String::NewFromUtf8(isolate, "context destroyed").ToLocalChecked();
         Report(isolate, tt, OP_OK);
         return true;
     }
@@ -83,7 +84,6 @@ void VM::PumpMessageLoop() {
 }
 
 void VM::TerminateExecution() {
-    v8::V8::TerminateExecution(isolate);
     isolate->TerminateExecution();
     FTRACE("Isolate terminated: %i\n", 10);
 }
@@ -101,25 +101,25 @@ void VM::Eval(Packet* packet) {
             contexts[packet->ref]);
 
     if (context.IsEmpty()) {
-        Local<String> tt = String::NewFromUtf8(isolate, "empty context");
+        Local<String> tt = String::NewFromUtf8(isolate, "empty context").ToLocalChecked();
         Report(isolate, tt, OP_INVALID_CONTEXT);
     } else {
         Context::Scope context_scope(context);
 
         string input = packet->data;
 
-        Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
+        Local<String> json_data = String::NewFromUtf8(isolate, input.c_str()).ToLocalChecked();
         Local<Object> instructions = Local<Object>::Cast(
             JSON::Parse(context, json_data).ToLocalChecked()
         );
 
-        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout");
-        Local<String> source_key = String::NewFromUtf8(isolate, "source");
+        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout").ToLocalChecked();
+        Local<String> source_key = String::NewFromUtf8(isolate, "source").ToLocalChecked();
 
-        Local<String> source = instructions->Get(source_key)->ToString();
-        Local<Integer> timeout = instructions->Get(timeout_key)->ToInteger();
+        Local<String> source = instructions->Get(context, source_key).ToLocalChecked();
+        Local<Integer> timeout = instructions->Get(context, timeout_key).ToLocalChecked();
 
-        Local<Script> script = Script::Compile(source);
+        Local<Script> script = Script::Compile(context, source).ToLocalChecked();
 
         if (script.IsEmpty()) {
             assert(try_catch.HasCaught());
@@ -129,12 +129,12 @@ void VM::Eval(Packet* packet) {
             void *res;
             struct TimeoutHandlerArgs timeout_handler_args = {
                 this,
-                (long)timeout->Int32Value()
+                (long)timeout->Int32Value(context).ToChecked()
             };
 
             pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
 
-            Local<Value> result = script->Run();
+            Local<Value> result = script->Run(context).ToLocalChecked();
 
             pthread_cancel(t);
             pthread_join(t, &res);
@@ -143,9 +143,9 @@ void VM::Eval(Packet* packet) {
 
             if (result.IsEmpty()) {
                 assert(try_catch.HasCaught());
-                if (try_catch.Message().IsEmpty() && try_catch.StackTrace().IsEmpty()) {
+                if (try_catch.Message().IsEmpty() && try_catch.StackTrace(context).IsEmpty()) {
                     TRACE("Execution timed out.\n");
-                    Local<String> tt = String::NewFromUtf8(isolate, "timeout");
+                    Local<String> tt = String::NewFromUtf8(isolate, "timeout").ToLocalChecked();
                     Report(isolate, tt, OP_TIMEOUT);
                 } else {
                     TRACE("Regular error\n");
@@ -169,32 +169,32 @@ void VM::Call(Packet* packet) {
             contexts[packet->ref]);
 
     if (context.IsEmpty()) {
-        Local<Value> tt = String::NewFromUtf8(isolate, "empty context");
+        Local<Value> tt = String::NewFromUtf8(isolate, "empty context").ToLocalChecked();
         Report(isolate, tt, OP_INVALID_CONTEXT);
     } else {
         Context::Scope context_scope(context);
 
-        Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
+        Local<String> json_data = String::NewFromUtf8(isolate, input.c_str()).ToLocalChecked();
         Local<Object> instructions = Local<Object>::Cast(
                 JSON::Parse(context, json_data).ToLocalChecked()
         );
 
         Local<Object> global = context->Global();
 
-        Local<String> function_key = String::NewFromUtf8(isolate, "function");
-        Local<String> function_name = instructions->Get(function_key)->ToString();
+        Local<String> function_key = String::NewFromUtf8(isolate, "function").ToLocalChecked();
+        Local<String> function_name = instructions->Get(context, function_key).ToLocalChecked();
 
-        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout");
-        Local<String> args_key = String::NewFromUtf8(isolate, "args");
-        Local<Value> args_value = instructions->Get(args_key);
+        Local<String> timeout_key = String::NewFromUtf8(isolate, "timeout").ToLocalChecked();
+        Local<String> args_key = String::NewFromUtf8(isolate, "args").ToLocalChecked();
+        Local<Value> args_value = instructions->Get(context, args_key).ToLocalChecked();
         Local<Array> raw_args = Local<Array>::Cast(args_value);
-        Local<Integer> timeout = instructions->Get(timeout_key)->ToInteger();
+        Local<Integer> timeout = instructions->Get(context, timeout_key).ToLocalChecked();
 
         int len = raw_args->Length();
         Local<Value> *args = new Local<Value>[len];
 
         for (int i = 0; i < len; i++) { 
-            args[i] = raw_args->Get(i);
+            args[i] = raw_args->Get(context, i).ToLocalChecked();
         }
 
         // we cannot simply retrieve the function from the global scope as the
@@ -202,23 +202,23 @@ void VM::Call(Packet* packet) {
         // temporary function is much simpler than attempting to split the name
         // and check all the individual parts.
         Local<String> prefix = String::NewFromUtf8(isolate,
-                "function __call() { return ");
+                "function __call() { return ").ToLocalChecked();
         Local<String> suffix = String::NewFromUtf8(isolate,
-                ".apply(null, arguments); }");
-        Local<String> source = String::Concat(String::Concat(prefix,
+                ".apply(null, arguments); }").ToLocalChecked();
+        Local<String> source = String::Concat(isolate, String::Concat(isolate, prefix,
                     function_name), suffix);
-        Local<Script> script = Script::Compile(source);
+        Local<Script> script = Script::Compile(context, source).ToLocalChecked();
 
         pthread_t t;
         void *res;
         struct TimeoutHandlerArgs timeout_handler_args = {
             this,
-            (long)timeout->Int32Value()
+            (long)timeout->Int32Value(context).ToChecked()
         };
 
         pthread_create(&t, NULL, TimeoutHandler, &timeout_handler_args);
 
-        Local<Value> eval_result = script->Run();
+        Local<Value> eval_result = script->Run(context).ToLocalChecked();
 
         pthread_cancel(t);
         pthread_join(t, &res);
@@ -227,9 +227,9 @@ void VM::Call(Packet* packet) {
             assert(try_catch.HasCaught());
             ReportException(isolate, &try_catch);
         } else {
-            Local<String> fn = String::NewFromUtf8(isolate, "__call");
-            Local<Function> function = Local<Function>::Cast(global->Get(fn));
-            Local<Value> result = function->Call(global, len, args);
+            Local<String> fn = String::NewFromUtf8(isolate, "__call").ToLocalChecked();
+            Local<Function> function = Local<Function>::Cast(global->Get(context, fn).ToLocalChecked());
+            Local<Value> result = function->Call(context, global, len, args).ToLocalChecked();
 
             if (result.IsEmpty()) {
                 assert(try_catch.HasCaught());

@@ -12,7 +12,7 @@ PRIV_DIR := $(ROOT_DIR)/../priv
 
 DEPOT_DIR := $(LIB_DIR)/depot_tools
 
-V8_VERSION := "5.9.211.33"
+V8_VERSION := "7.9.317.25"
 V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out.gn/$(BUILD_ARCH).release/obj
 
@@ -56,11 +56,12 @@ ifeq ($(wildcard $(V8_DIR)),)
 endif
 
 $(V8_LIB)/libv8_base.a: $(V8_DIR)
+	@echo "ROOT dir $(ROOT_DIR)"
 	cd $(LIB_DIR) && gclient sync --revision $(V8_VERSION)
 	cd $(V8_DIR) && tools/dev/v8gen.py -vv $(BUILD_ARCH).release
-	cd $(V8_DIR) && gn gen "--args=is_component_build = false is_debug = false v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
+	cd $(V8_DIR) && gn gen "--args=is_component_build = false is_debug = false use_custom_libcxx = false use_sysroot = false use_gold = false v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
 	cd $(V8_DIR) && $(DEPOT_DIR)/ninja -C out.gn/$(BUILD_ARCH).release
-	@touch $@
+	#@touch $@
 
 $(PRIV_DIR)/natives_blob.bin: $(V8_LIB)/libv8_base.a
 	cp $(V8_LIB)/../natives_blob.bin $(PRIV_DIR)
@@ -92,10 +93,13 @@ else
 		-o $(TARGET_BIN) \
 		-Wno-unused-variable \
 		-Wl,--start-group \
-		$(V8_LIB)/{libv8_{base,libbase,external_snapshot,libplatform,libsampler},third_party/icu/libicu{uc,i18n},src/inspector/libinspector}.a \
+		$(V8_LIB)/{libv8_{base,libbase,external_snapshot,libplatform,libsampler,init,initializers,compiler,compiler_opt,base_without_compiler},libtorque*,libwasm*,libwee8,third_party/icu/libicu{uc,i18n},src/inspector/libinspector}.a \
+		$(V8_LIB)/buildtools/third_party/libc++/libc++/*.o \
+		$(V8_LIB)/buildtools/third_party/libc++abi/libc++abi/*.o \
 		-Wl,--end-group \
 		-lrt \
 		-ldl \
 		-pthread \
+		-fpermissive \
 		-std=c++11
 endif

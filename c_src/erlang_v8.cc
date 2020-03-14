@@ -115,6 +115,59 @@ bool CommandLoop(VM& vm) {
     return reset;
 }
 
+/*
+ * The implementations of the run_extra_code(), create_snapshot_data_blob() and
+ * warm_up_snapshot_data_blob() functions have been derived from V8's test suite.
+ */
+// see also https://github.com/rubyjs/mini_racer/commit/a22348f73ee32b7860d7ba5b26bfed6c80a52e56
+bool run_extra_code(Isolate *isolate, Local<v8::Context> context,
+                    const char *utf8_source, const char *name) {
+    Context::Scope context_scope(context);
+    TryCatch try_catch(isolate);
+    Local<String> source_string;
+    if (!String::NewFromUtf8(isolate, utf8_source,
+                             NewStringType::kNormal)
+             .ToLocal(&source_string)) {
+        return false;
+    }
+    Local<v8::String> resource_name =
+        String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+            .ToLocalChecked();
+    ScriptOrigin origin(resource_name);
+    ScriptCompiler::Source source(source_string, origin);
+    Local<Script> script;
+    if (!ScriptCompiler::Compile(context, &source).ToLocal(&script))
+        return false;
+    if (script->Run(context).IsEmpty())
+        return false;
+    // CHECK(!try_catch.HasCaught());
+    return true;
+}
+
+StartupData
+create_snapshot_data_blob(const char *embedded_source = nullptr) {
+    // Create a new isolate and a new context from scratch, optionally run
+    // a script to embed, and serialize to create a snapshot blob.
+    StartupData result = {nullptr, 0};
+    {
+        SnapshotCreator snapshot_creator;
+        Isolate *isolate = snapshot_creator.GetIsolate();
+        {
+            HandleScope scope(isolate);
+            Local<Context> context = Context::New(isolate);
+            if (embedded_source != nullptr &&
+                !run_extra_code(isolate, context, embedded_source,
+                                "<embedded>")) {
+                return result;
+            }
+            snapshot_creator.SetDefaultContext(context);
+        }
+        result = snapshot_creator.CreateBlob(
+            SnapshotCreator::FunctionCodeHandling::kClear);
+    }
+    return result;
+}
+
 int main(int argc, char* argv[]) {
     ios_base::sync_with_stdio(false);
 
@@ -122,8 +175,8 @@ int main(int argc, char* argv[]) {
     V8::InitializeICUDefaultLocation(argv[0]);
     v8::V8::InitializeExternalStartupData(argv[0]);
 
-    Platform* platform = v8::platform::CreateDefaultPlatform();
-    V8::InitializePlatform(platform);
+    std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+    V8::InitializePlatform(platform.get());
     V8::Initialize();
 
     V8::SetFlagsFromCommandLine(&argc, argv, true);
@@ -137,15 +190,16 @@ int main(int argc, char* argv[]) {
         source = NULL;
     }
 
-    StartupData snapshot = V8::CreateSnapshotDataBlob(source);
+    Isolate* isolate = Isolate::New(params);
+
+    StartupData snapshot = create_snapshot_data_blob(source);
 
     ArrayBufferAllocator allocator;
     params.snapshot_blob = &snapshot;
     params.array_buffer_allocator = &allocator;
 
-    Isolate* isolate = Isolate::New(params);
 
-    VM vm(platform, isolate);
+    VM vm(platform.get(), isolate);
     FTRACE("Initial VM: %p\n", &vm);
     {
         Isolate::Scope isolate_scope(isolate);
@@ -156,7 +210,7 @@ int main(int argc, char* argv[]) {
     isolate->Dispose();
     V8::Dispose();
     V8::ShutdownPlatform();
-    delete platform;
+    //delete platform;
 
     return 0;
 }

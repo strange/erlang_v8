@@ -20,18 +20,18 @@ const char* ToCString(const v8::String::Utf8Value& value) {
 void Report(Isolate* isolate, Local<Value> response, uint8_t op) {
     uint32_t ref = 0;
 
-    Local<Value> input;
+    Local<String> input;
 
     if (response->IsUndefined()) {
         TRACE("Undefined");
-        input = String::NewFromUtf8(isolate, "undefined");
+        input = String::NewFromUtf8(isolate, "undefined").ToLocalChecked();
     } else if (response->IsString()) {
         input = response;
     } else {
         input = JSONStringify(isolate, response);
     }
 
-    String::Utf8Value utf8 (input);
+    String::Utf8Value utf8 (isolate, input);
     uint32_t len = utf8.length() + 1 + 4;
 
     cout << (uint8_t)((len >> 24) & 0xff);
@@ -62,27 +62,29 @@ void ReportError(Isolate* isolate, Local<Value> response) {
 
 void ReportException(Isolate* isolate, TryCatch* try_catch) {
     HandleScope handle_scope(isolate);
-    Local<Value> stack_trace = try_catch->StackTrace();
+    Local<Context> context = isolate->GetCurrentContext();
+    Local<Value> stack_trace = try_catch->StackTrace(context).ToLocalChecked();
 
     if (stack_trace.IsEmpty()) {
         ReportError(isolate, try_catch->Exception());
     } else {
-        const char* st = ToCString(String::Utf8Value(try_catch->StackTrace()));
+        const char* st = ToCString(String::Utf8Value(isolate, try_catch->StackTrace(context).ToLocalChecked()));
         FTRACE("Stack: %s\n", st);
-        ReportError(isolate, try_catch->StackTrace());
+        ReportError(isolate, try_catch->StackTrace(context).ToLocalChecked());
     }
 }
 
 Local<Value> WrapError(Isolate* isolate, Local<Value> exception) {
     EscapableHandleScope handle_scope(isolate);
+    Local<Context> context = isolate->GetCurrentContext();
 
     Local<Object> obj = Object::New(isolate);
 
-    String::Utf8Value exception_string(exception);
+    String::Utf8Value exception_string(isolate, exception);
     std::string from = std::string(*exception_string);
 
-    obj->Set(String::NewFromUtf8(isolate, "error"),
-             exception->ToString());
+    obj->Set(context, String::NewFromUtf8(isolate, "error").ToLocalChecked(),
+             exception);
 
     // add line number and other fancy details ...
 
@@ -94,13 +96,13 @@ Local<Value> JSONStringify(Isolate* isolate, Local<Value> obj) {
     Local<Object> global = context->Global();
     EscapableHandleScope handle_scope(isolate);
 
-    Local<Value> JSONValue = global->Get(String::NewFromUtf8(isolate, "JSON"));
-    Local<Object> JSON = JSONValue->ToObject();
+    MaybeLocal<Value> JSONValue = global->Get(context, String::NewFromUtf8(isolate, "JSON").ToLocalChecked());
+    Local<Object> JSON = JSONValue.ToLocalChecked();
     Local<Function> stringify = Local<Function>::Cast(
-            JSON->Get(String::NewFromUtf8(isolate, "stringify")));
+            JSON->Get(context, String::NewFromUtf8(isolate, "stringify").ToLocalChecked()).ToLocalChecked());
 
     Local<Value> args[] = { obj };
-    Local<Value> result = stringify->Call(JSON, 1, args);
+    Local<Value> result = stringify->Call(context, JSON, 1, args).ToLocalChecked();
 
     return handle_scope.Escape(result);
 }
