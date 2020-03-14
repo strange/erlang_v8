@@ -137,10 +137,14 @@ bool run_extra_code(Isolate *isolate, Local<v8::Context> context,
     ScriptOrigin origin(resource_name);
     ScriptCompiler::Source source(source_string, origin);
     Local<Script> script;
-    if (!ScriptCompiler::Compile(context, &source).ToLocal(&script))
+    if (!ScriptCompiler::Compile(context, &source).ToLocal(&script)) {
+        TRACE("snapshot compilation failed\n");
         return false;
-    if (script->Run(context).IsEmpty())
+    }
+    if (script->Run(context).IsEmpty()) {
+        TRACE("snapshot result empty\n");
         return false;
+    }
     // CHECK(!try_catch.HasCaught());
     return true;
 }
@@ -159,8 +163,10 @@ create_snapshot_data_blob(const char *embedded_source = nullptr) {
             if (embedded_source != nullptr &&
                 !run_extra_code(isolate, context, embedded_source,
                                 "<embedded>")) {
+                TRACE("run_extra code false\n");
                 return result;
             }
+            TRACE("path \n");
             snapshot_creator.SetDefaultContext(context);
         }
         result = snapshot_creator.CreateBlob(
@@ -185,15 +191,16 @@ int main(int argc, char* argv[]) {
     Isolate::CreateParams params;
 
     char* source;
-    if (argc == 2) {
+    if (argc == 2 && strlen(argv[1]) > 0) {
+        // this seems to cause debug builds to be angry
         source = argv[1];
+        FTRACE("got snapshot \"%s\"\n", source);
+        StartupData snapshot = create_snapshot_data_blob(source);
+        params.snapshot_blob = &snapshot;
     } else {
         source = NULL;
     }
 
-    //StartupData snapshot = create_snapshot_data_blob(source);
-
-    //params.snapshot_blob = &snapshot;
     params.array_buffer_allocator =
         v8::ArrayBuffer::Allocator::NewDefaultAllocator();
 
