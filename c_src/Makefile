@@ -12,7 +12,7 @@ PRIV_DIR := $(ROOT_DIR)/../priv
 
 DEPOT_DIR := $(LIB_DIR)/depot_tools
 
-V8_VERSION := "7.9.317.34"
+V8_VERSION := "8.0.426.26"
 V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out.gn/$(BUILD_ARCH).release/obj
 CURRENT_VERSION := $(shell cd $(V8_DIR); git describe --tags)
