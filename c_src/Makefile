@@ -39,7 +39,7 @@ local-clean:
 local-distclean: local-clean
 	rm -rf $(LIB_DIR)
 
-v8: $(TARGET_BIN) $(PRIV_DIR)/natives_blob.bin $(PRIV_DIR)/snapshot_blob.bin $(PRIV_DIR)/icudtl.dat
+v8: $(TARGET_BIN) $(PRIV_DIR)/snapshot_blob.bin $(PRIV_DIR)/icudtl.dat
 
 $(LIB_DIR):
 	mkdir -p $(LIB_DIR)
@@ -72,9 +72,6 @@ $(V8_LIB)/libv8_base.a: $(V8_DIR)
 	cd $(V8_DIR) && tools/dev/v8gen.py -vv $(BUILD_ARCH).release
 	cd $(V8_DIR) && gn gen "--args=is_component_build = false is_debug = false v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
 	cd $(V8_DIR) && $(DEPOT_DIR)/ninja -C out.gn/$(BUILD_ARCH).release erlang_v8
-
-$(PRIV_DIR)/natives_blob.bin: $(V8_LIB)/libv8_base.a
-	cp $(V8_LIB)/../natives_blob.bin $(PRIV_DIR)
 
 $(PRIV_DIR)/snapshot_blob.bin: $(V8_LIB)/libv8_base.a
 	cp $(V8_LIB)/../snapshot_blob.bin $(PRIV_DIR)

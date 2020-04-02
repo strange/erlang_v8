@@ -13,7 +13,7 @@ The most notable features:
 - Multiple separate contexts per VM. This is useful when you want multiple
   parties to share the same VM(s).
 - A VM can be initialized with pre-defined source that's loaded into the OS
-  process and available in all contexts.
+  process and available in all contexts (CURRENTLY BROKEN).
 
 I'm also planning two-way communication (i.e. passing messages back to the
 controlling process from JS) and a few other things.
@@ -67,7 +67,7 @@ Stop the VM:
     ok = erlang_v8:stop_vm(VM).
 
 VMs can be initialized with code that is automatically available in all
-contexts:
+contexts (CURRENTLY BROKEN):
 
     {ok, VM} = erlang_v8:start_vm([{source, <<"var x = 1;">>}]).
     {ok, Context1} = erlang_v8:create_context(VM).
@@ -84,7 +84,7 @@ contexts:
 
     ok = erlang_v8:stop_vm(VM).
 
-You can also initialize the VMs using paths to source files:
+You can also initialize the VMs using paths to source files (CURRENTLY BROKEN):
 
     {ok, VM} = erlang_v8:start_vm([{file, "a.js"}, {file, "b.js"}]).
 
@@ -107,7 +107,8 @@ framework that, among other things, implements a pool.
 
 ## TODO
 
-- Use custom protocol to support more data types (binary, dates etc
+- Use custom protocol to support more data types (binary, dates etc)
 - Refactor the API
 - Experiment with calling Erlang from v8 synchronously
-- Build on OS X again
+- Fix or remove support for pre-defined code loading
+- Investigate communicating with the port via networking rather than stdin/out
