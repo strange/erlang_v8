@@ -1,0 +1,45 @@
+language: c
+sudo: false
+
+GH_TOKEN: &GH_TOKEN
+    secure: b5yedFmNBGCxyQUqIxuTZ1vnHsuHSWrSNBI4lZUXK9wksqAW/LhDqFGNVa6KMGuhnLaZmtlhHcCfKyibWmCJp/qcN7JU6twf7gb2+WO8MoJzz3BSBpwPBexK+IK82mp4/1Dvlvsay5sbyFuCR7j8INRFfpbPhMLDCvMF8Kq8Q67xfMrbgAFs/1KepQD4VEZtJ+8hTqFLrl7+tR9HHIpDUKQM9+iQlVffT1tx1IO8bWPavwY4NzHzYPXXmABWxifJ+EB63qlSBTsFV/B3FtcohgFcFZKEG7uwwVnwTOcFH8Qyo270Pz6hrgvR9FgF6bh1Yk50RFTUp3oPF+6bfwwX2qqXkTEMbtjcOD2wBcQy7qyRBm64tYMjJE+W/+oFIjUEh5uRYWhelqs23KllcV8+l6gGe9SJl71OYnEgcQ+ENOwt+v2nxTYlGUtEnLfyLDfwTJ5RQgFaXf2nzC07YDFCaLGyHuN/09lhMq8L6IEl7v3RhJeAlhBNbDawv+qMDOYsxCnlZzVXWSx6Czh9XSXgyCFNg+K/nEMrZw2JowJKAAyLQV/Asg+9u6FcvThOREQvqWJaHIgGGvQjJmNy/sRxI/mOnXI6bLxWfrlwlXqWFo6of8vNqLE0v2dXOH5yPxyOyVxTSn3kVJNcmYocuwVHSpDyMgQcVy6DC2YimdZJWNA=
+
+
+DEPLOY_TO_GITHUB: &DEPLOY_TO_GITHUB
+  before_deploy:
+    - git config --local user.name "Helium CI"
+    - git config --local user.email "hello@helium.com"
+    - name="erlang-v8-$TRAVIS_TAG-$TARGET"
+    - mkdir $name
+    - cp priv/* $name/
+    - cp README.md LICENSE $name/
+    - tar czvf $name.tar.gz $name
+  deploy:
+    provider: releases
+    api_key: *GH_TOKEN
+    file: erlang-v8-$TRAVIS_TAG_$TARGET.tar.gz
+    skip_cleanup: true
+    on:
+      branch: master
+      tags: true
+
+matrix:
+  include:
+  - name: Linux
+    os: linux
+    addons:
+      apt:
+        packages:
+          - erlang
+    script:
+      - make
+    <<: *DEPLOY_TO_GITHUB
+
+  - name: macOS Binary
+    os: osx
+    osx_image: xcode11.4
+    before_script:
+      - brew install erlang
+    script:
+      - make
+    <<: *DEPLOY_TO_GITHUB
