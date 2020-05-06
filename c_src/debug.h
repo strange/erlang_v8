@@ -1,7 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#define DEBUG 0
+#define DEBUG 1
 
 
 #define FTRACE(fmt, ...) \
