@@ -15,17 +15,23 @@ DEPOT_DIR := $(LIB_DIR)/depot_tools
 V8_VERSION := "8.0.426.26"
 V8_DIR := $(LIB_DIR)/v8
 V8_LIB := $(V8_DIR)/out.gn/$(BUILD_ARCH).release/obj
+ERLANG_V8_VERSION := $(shell cd ..; git fetch --tags; git describe --tags --always)
 CURRENT_VERSION := $(shell cd $(V8_DIR); git fetch --tags; git describe --tags)
 
 TARGET_BIN := $(PRIV_DIR)/erlang_v8
 TARGET_SRC := erlang_v8.cc report.cc vm.cc
+
+RELEASE_TARBALL := erlang_v8-$(ERLANG_V8_VERSION)-$(OS)-$(BUILD_ARCH).tar.gz
 
 PATH := $(PATH):$(DEPOT_DIR)
 SHELL := /bin/bash
 
 .PHONY: all v8 clean distclean local-clean local-distclean
 
-all:: v8
+all:: v8 ../$(RELEASE_TARBALL)
+
+../$(RELEASE_TARBALL):
+	(cd ..; tar -czf erlang_v8-$(ERLANG_V8_VERSION)-$(OS)-$(BUILD_ARCH).tar.gz priv/erlang_v8 priv/snapshot_blob.bin)
 
 clean:: local-clean
 
