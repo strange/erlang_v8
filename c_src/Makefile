@@ -26,9 +26,14 @@ RELEASE_TARBALL := erlang_v8-$(ERLANG_V8_VERSION)-$(OS)-$(BUILD_ARCH).tar.gz
 PATH := $(PATH):$(DEPOT_DIR)
 SHELL := /bin/bash
 
-.PHONY: all v8 clean distclean local-clean local-distclean
+.PHONY: all v8 clean distclean local-clean local-distclean fetch
 
-all:: v8 ../$(RELEASE_TARBALL)
+all:: v8
+
+release-tarball: ../$(RELEASE_TARBALL)
+
+fetch:
+	(cd ..; if [ ! -f $(RELEASE_TARBALL) ] ; then wget https://helium-release.s3-us-west-2.amazonaws.com/v8/$(RELEASE_TARBALL); tar -xf $(RELEASE_TARBALL); true; fi)
 
 ../$(RELEASE_TARBALL):
 	(cd ..; tar -czf erlang_v8-$(ERLANG_V8_VERSION)-$(OS)-$(BUILD_ARCH).tar.gz priv/erlang_v8 priv/snapshot_blob.bin)
@@ -76,7 +81,7 @@ $(V8_LIB)/libv8_base.a: $(V8_DIR)
 			cd $(V8_DIR) && patch -p1 -i ../../gn.patch && touch .gn_patched; \
   fi
 	cd $(V8_DIR) && tools/dev/v8gen.py -vv $(BUILD_ARCH).release
-	cd $(V8_DIR) && gn gen "--args=is_component_build = false is_debug = true v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
+	cd $(V8_DIR) && gn gen "--args=is_component_build = false is_debug = false v8_static_library = true target_cpu = \"$(BUILD_ARCH)\"" out.gn/$(BUILD_ARCH).release
 	cd $(V8_DIR) && $(DEPOT_DIR)/ninja -C out.gn/$(BUILD_ARCH).release erlang_v8
 
 $(PRIV_DIR)/snapshot_blob.bin: $(V8_LIB)/libv8_base.a
