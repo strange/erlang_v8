@@ -20,6 +20,7 @@
 -export([performance/1]).
 -export([dead_proc/1]).
 -export([escaped_control_characters/1]).
+-export([crashed_port/1]).
 
 %% Callbacks
 
@@ -40,7 +41,8 @@ all() ->
         performance,
         big_input,
         dead_proc,
-        escaped_control_characters
+        escaped_control_characters,
+        crashed_port
     ].
 
 init_per_suite(Config) ->
@@ -324,7 +326,41 @@ dead_proc(_Config) ->
     erlang_v8:stop_vm(P),
     ok.
 
+crashed_port(_Config) ->
+    {ok, P} = erlang_v8:start_vm(),
+
+    crash_port(P),
+
+    {error, crashed} = erlang_v8_vm:create_context(P),
+
+    {ok, Context} = erlang_v8:create_context(P),
+
+    crash_port(P),
+
+    {error, crashed} = erlang_v8:eval(P, Context, <<"1 + 1">>),
+
+    {ok, Context2} = erlang_v8:create_context(P),
+
+    {ok, 2} = erlang_v8:eval(P, Context2, <<"1 + 1">>),
+
+    crash_port(P),
+
+    {error, crashed} = erlang_v8_vm:destroy_context(P, Context2),
+
+
+    erlang_v8:stop_vm(P),
+    ok.
+
+
 %% Helpers
 
 random_bytes(N) ->
     list_to_binary([rand:uniform(26) + 96 || _ <- lists:seq(0, N - 1)]).
+
+crash_port(P) ->
+    Port = element(4, sys:get_state(P)),
+    ct:pal("port is ~p", [Port]),
+    ct:pal("port_info is ~p", [erlang:port_info(Port, os_pid)]),
+    {os_pid, Pid} = erlang:port_info(Port, os_pid),
+    os:cmd(io_lib:format("kill -9 ~b", [Pid])).
+
