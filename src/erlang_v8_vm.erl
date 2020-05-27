@@ -24,7 +24,7 @@
 -export([code_change/3]).
 
 -define(EXECUTABLE, "erlang_v8").
--define(SPAWN_OPTS, [{packet, 4}, binary]).
+-define(SPAWN_OPTS, [{packet, 4}, binary, exit_status]).
 -define(DEFAULT_TIMEOUT, 2000).
 -define(MAX_SOURCE_SIZE, 16#FFFFFFFF).
 
@@ -111,6 +111,8 @@ handle_call({create_context, Pid, _Timeout}, _From, #state{port = Port, table = 
     case send_to_port(Port, ?OP_CREATE_CONTEXT, Context) of
         {ok, _Response} ->
             {reply, {ok, Context}, State};
+        {error, crashed}=Error ->
+            {reply, Error, start_port(kill_port(State))};
         _Other ->
             {reply, {error, invalid_context}, State}
     end;
@@ -127,6 +129,8 @@ handle_call({destroy_context, Context}, _From,
     case send_to_port(Port, ?OP_DESTROY_CONTEXT, Context) of
         {ok, _Response} ->
             {reply, ok, State};
+        {error, crashed}=Error ->
+            {reply, Error, start_port(kill_port(State))};
         _Other ->
             {reply, {error, invalid_context}, State}
     end;
@@ -151,8 +155,12 @@ handle_info({'DOWN', MRef, process, _Pid, _Reason},
             #state{table = Table, port = Port} = State) ->
     [[Context]] = ets:match(Table, {'$1', MRef}),
     true = ets:delete(Table, Context),
-    send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
-    {noreply, State};
+    case send_to_port(Port, ?OP_DESTROY_CONTEXT, Context) of
+        {error, crashed} ->
+            {noreply, start_port(kill_port(State))};
+        _ ->
+            {noreply, State}
+    end;
 
 handle_info(_Msg, State) ->
     {noreply, State}.
@@ -259,6 +267,8 @@ receive_port_data(Port) ->
             {call_error, timeout};
         {Port, {data, <<?OP_INVALID_CONTEXT:8, _Ref:32, _/binary>>}} ->
             {call_error, invalid_context};
+        {Port, {exit_status, _Status}} ->
+            {error, crashed};
         {Port, Error} ->
             %% TODO: we should probably special case here.
             {error, Error}
