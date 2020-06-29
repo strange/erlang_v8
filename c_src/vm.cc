@@ -24,7 +24,7 @@ struct TimeoutHandlerArgs {
 void* TimeoutHandler(void *arg) {
     struct TimeoutHandlerArgs *args = (struct TimeoutHandlerArgs*)arg;
 
-    FTRACE("Timeout handler started: %i\n", args->timeout);
+    FTRACE("Timeout handler started: %li\n", args->timeout);
     usleep(args->timeout * 1000);
     TRACE("Timeout expired. Terminating execution.\n");
 
@@ -83,7 +83,8 @@ void VM::PumpMessageLoop() {
 }
 
 void VM::TerminateExecution() {
-    v8::V8::TerminateExecution(isolate);
+    // v8::V8::TerminateExecution(isolate); Was deprecated, is now removed, the isolate
+    //                                      member function does the same.
     isolate->TerminateExecution();
     FTRACE("Isolate terminated: %i\n", 10);
 }
@@ -193,7 +194,7 @@ void VM::Call(Packet* packet) {
         int len = raw_args->Length();
         Local<Value> *args = new Local<Value>[len];
 
-        for (int i = 0; i < len; i++) { 
+        for (int i = 0; i < len; i++) {
             args[i] = raw_args->Get(i);
         }
 
