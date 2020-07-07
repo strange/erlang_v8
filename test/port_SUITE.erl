@@ -8,6 +8,7 @@
 
 -export([eval/1]).
 -export([call/1]).
+-export([compile_module/1]).
 -export([return_type/1]).
 -export([nested_return_type/1]).
 -export([errors/1]).
@@ -25,20 +26,21 @@
 
 all() ->
     [
-        eval,
-        call,
-        return_type,
-        timeout,
-        nested_return_type,
-        errors,
-        contexts,
-        init_from_source,
-        init_from_file,
-        multiple_vms,
-        performance,
-        big_input,
-        dead_proc,
-        escaped_control_characters
+        % eval,
+        % call,
+        compile_module
+        % return_type,
+        % timeout,
+        % nested_return_type,
+        % errors,
+        % contexts,
+        % init_from_source,
+        % init_from_file,
+        % multiple_vms,
+        % performance,
+        % big_input,
+        % dead_proc,
+        % escaped_control_characters
     ].
 
 init_per_suite(Config) ->
@@ -68,7 +70,7 @@ call(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 
     {ok, Context} = erlang_v8:create_context(P),
-    
+
     {ok, undefined} = erlang_v8:eval(P, Context, <<"function sum(a, b) { return a + b; }">>),
     {ok, 3} = erlang_v8:call(P, Context, <<"sum">>, [1, 2]),
 
@@ -100,6 +102,20 @@ call(_Config) ->
 
     erlang_v8:stop_vm(P),
     ok.
+
+compile_module(_Config) ->
+    {ok, P} = erlang_v8:start_vm(),
+
+    {ok, Context} = erlang_v8:create_context(P),
+
+    ok = erlang_v8:compile_module(P, Context, <<"test.js">>,
+				  <<"export function sum(x, y) { return x + y }">>),
+
+    ok = erlang_v8:destroy_context(P, Context),
+
+    erlang_v8:stop_vm(P),
+    ok.
+
 
 return_type(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
@@ -160,7 +176,7 @@ nested_return_type(_Config) ->
 
     erlang_v8:stop_vm(VM),
     ok.
- 
+
 errors(_Config) ->
     {ok, P} = erlang_v8:start_vm(),
 

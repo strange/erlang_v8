@@ -13,6 +13,7 @@
 -export([eval/4]).
 -export([call/4]).
 -export([call/5]).
+-export([compile_module/4]).
 
 start_vm() ->
     start_vm([]).
@@ -43,3 +44,6 @@ call(Pid, Context, FunctionName, Args) ->
 
 call(Pid, Context, FunctionName, Args, Timeout) ->
     erlang_v8_vm:call(Pid, Context, FunctionName, Args, Timeout).
+
+compile_module(Pid, Context, Name, Source) ->
+    erlang_v8_vm:compile_module(Pid, Context, Name, Source).

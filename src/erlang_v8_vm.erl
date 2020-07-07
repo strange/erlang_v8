@@ -112,6 +112,7 @@ handle_call({eval, Context, Source, Timeout}, _From,
 handle_call({compile_module, Context, Name, Source}, _From,
             #state{port = Port, max_source_size = MaxSourceSize} = State) ->
     Instructions = jsx:encode(#{ name => Name, source => Source }),
+    io:fwrite("About to compile module ~w, insns=~w~n", [Name, Instructions]),
     handle_response(send_to_port(Port, ?OP_COMPILE_MODULE, Context, Instructions,
                                  MaxSourceSize), State);
 
@@ -160,6 +161,7 @@ handle_cast(_Message, State) ->
 
 handle_info({'DOWN', MRef, process, _Pid, _Reason},
             #state{table = Table, port = Port} = State) ->
+    io:fwrite("Down, state=~w~n", [State]),
     [[Context]] = ets:match(Table, {'$1', MRef}),
     true = ets:delete(Table, Context),
     send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
