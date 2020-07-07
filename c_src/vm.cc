@@ -160,6 +160,72 @@ void VM::Eval(Packet* packet) {
     }
 }
 
+ScriptOrigin ModuleOrigin(Local<v8::Value> resource_name, Isolate* isolate) {
+  ScriptOrigin origin(resource_name, Local<v8::Integer>(), Local<v8::Integer>(),
+                      Local<v8::Boolean>(), Local<v8::Integer>(),
+                      Local<v8::Value>(), Local<v8::Boolean>(),
+                      Local<v8::Boolean>(), True(isolate));
+  return origin;
+}
+
+MaybeLocal<Module> ResolveCallback(Local<Context> context,
+                                   Local<String> specifier,
+                                   Local<Module> referrer) {
+//  if (specifier->StrictEquals(v8_str("./dep1.js"))) {
+//    return dep1;
+//  } else {
+    Isolate *isolate = context->GetIsolate();
+    isolate->ThrowException(String::NewFromUtf8(isolate, "boom"));
+    return MaybeLocal<Module>();
+//  }
+}
+
+void VM::CompileModule(Packet* packet) {
+    HandleScope handle_scope(isolate);
+    TryCatch try_catch(isolate);
+
+    Local<Context> context = Local<Context>::New(isolate,
+            contexts[packet->ref]);
+
+    if (context.IsEmpty()) {
+        Local<String> tt = String::NewFromUtf8(isolate, "empty context");
+        Report(isolate, tt, OP_INVALID_CONTEXT);
+    } else {
+        Context::Scope context_scope(context);
+
+        string input = packet->data;
+
+        Local<String> json_data = String::NewFromUtf8(isolate, input.c_str());
+        Local<Object> instructions = Local<Object>::Cast(
+            JSON::Parse(context, json_data).ToLocalChecked()
+        );
+
+	Local<String> name_key = String::NewFromUtf8(isolate, "name");
+        Local<String> source_key = String::NewFromUtf8(isolate, "source");
+
+	Local<String> name = instructions->Get(name)->ToString();
+        Local<String> source_code = instructions->Get(source_key)->ToString();
+
+	ScriptOrigin origin = ModuleOrigin(name, isolate);
+	ScriptCompiler::Source source(source_code, origin);
+	Local<Module> module = ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
+
+        if (module->GetStatus() == v8::Module::kErrored) {
+            assert(try_catch.HasCaught());
+            ReportException(isolate, &try_catch);
+        } else {
+
+	    Maybe<bool> result = module->InstantiateModule(context, ResolveCallback);
+	    if (result.IsNothing() || module->GetStatus() == v8::Module::kErrored) {
+		assert(try_catch.HasCaught());
+		ReportException(isolate, &try_catch);
+	    } else {
+		ReportOK(isolate, name);
+	    }
+        }
+    }
+}
+
 void VM::Call(Packet* packet) {
     HandleScope handle_scope(isolate);
     TryCatch try_catch(isolate);
