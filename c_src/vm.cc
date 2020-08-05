@@ -236,13 +236,13 @@ void VM::Call(Packet* packet) {
         } else {
             Local<String> fn = String::NewFromUtf8(isolate, "__call").ToLocalChecked();
             Local<Function> function = Local<Function>::Cast(global->Get(context, fn).ToLocalChecked());
-            Local<Value> result = function->Call(context, global, len, args).ToLocalChecked();
+            MaybeLocal<Value> result = function->Call(context, global, len, args);
 
             if (result.IsEmpty()) {
                 assert(try_catch.HasCaught());
                 ReportException(isolate, &try_catch);
             } else {
-                ReportOK(isolate, result);
+                ReportOK(isolate, result.ToLocalChecked());
             }
         }
     }
