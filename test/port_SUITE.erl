@@ -21,6 +21,7 @@
 -export([dead_proc/1]).
 -export([escaped_control_characters/1]).
 -export([crashed_port/1]).
+-export([undefined_function/1]).
 
 %% Callbacks
 
@@ -42,7 +43,8 @@ all() ->
         big_input,
         dead_proc,
         escaped_control_characters,
-        crashed_port
+        crashed_port,
+        undefined_function
     ].
 
 init_per_suite(Config) ->
@@ -351,6 +353,25 @@ crashed_port(_Config) ->
     erlang_v8:stop_vm(P),
     ok.
 
+
+undefined_function(_Config) ->
+
+    {ok, VM} = erlang_v8:start_vm(),
+    {ok, C0} = erlang_v8:create_context(VM),
+    {ok, C1} = erlang_v8:create_context(VM),
+    Function = <<"function Decoder(bytes, port) {return 0;}">>,
+    {ok, _} = erlang_v8:eval(VM, C0, Function),
+    {ok, _} = erlang_v8:eval(VM, C1, Function),
+
+    {ok, 0} = erlang_v8:call(VM, C0, <<"Decoder">>, [<<"">>, 1], 250),
+    {ok, 0} = erlang_v8:call(VM, C1, <<"Decoder">>, [<<"">>, 1], 250),
+
+    {error, <<"ReferenceError: Decoders is not defined", _/binary>>} = erlang_v8:call(VM, C0, <<"Decoders">>, [<<"">>, 1], 250),
+
+    {ok, 0} = erlang_v8:call(VM, C1, <<"Decoder">>, [<<"">>, 1], 250),
+
+    erlang_v8:stop_vm(VM),
+    ok.
 
 %% Helpers
 
