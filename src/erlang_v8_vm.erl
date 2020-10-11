@@ -26,6 +26,7 @@
 -export([destroy_context/2]).
 -export([eval/3]).
 -export([eval/4]).
+-export([compile_module/4]).
 -export([call/4]).
 -export([call/5]).
 
@@ -46,6 +47,7 @@
 -define(OP_CREATE_CONTEXT, 3).
 -define(OP_DESTROY_CONTEXT, 4).
 -define(OP_RESET_VM, 5).
+-define(OP_COMPILE_MODULE, 6).
 
 -define(OP_OK, 0).
 -define(OP_ERROR, 1).
@@ -76,6 +78,9 @@ eval(Pid, Context, Source) ->
 
 eval(Pid, Context, Source, Timeout) ->
     call_with_timeout(Pid, {eval, Context, Source, Timeout}, 30000).
+
+compile_module(Pid, Context, Name, Source) ->
+    gen_server:call(Pid, {compile_module, Context, Name, Source}).
 
 call(Pid, Context, FunctionName, Args) ->
     call(Pid, Context, FunctionName, Args, ?DEFAULT_TIMEOUT).
@@ -115,6 +120,13 @@ handle_call({eval, Context, Source, Timeout}, _From,
             #state{port = Port, max_source_size = MaxSourceSize} = State) ->
     Instructions = jsx:encode(#{ source => Source, timeout => Timeout }),
     handle_response(send_to_port(Port, ?OP_EVAL, Context, Instructions,
+                                 MaxSourceSize), State);
+
+handle_call({compile_module, Context, Name, Source}, _From,
+            #state{port = Port, max_source_size = MaxSourceSize} = State) ->
+    Instructions = jsx:encode(#{ name => Name, source => Source }),
+    io:fwrite("About to compile module ~w, insns=~w~n", [Name, Instructions]),
+    handle_response(send_to_port(Port, ?OP_COMPILE_MODULE, Context, Instructions,
                                  MaxSourceSize), State);
 
 handle_call({create_context, Pid, _Timeout}, _From, #state{port = Port, table = Table} = State) ->
@@ -162,6 +174,7 @@ handle_cast(_Message, State) ->
 
 handle_info({'DOWN', MRef, process, _Pid, _Reason},
             #state{table = Table, port = Port} = State) ->
+    io:fwrite("Down, state=~w~n", [State]),
     [[Context]] = ets:match(Table, {'$1', MRef}),
     true = ets:delete(Table, Context),
     send_to_port(Port, ?OP_DESTROY_CONTEXT, Context),
@@ -223,7 +236,7 @@ monitor_port(#state{port = Port} = State) ->
     Pid = spawn(fun() ->
         {os_pid, OSPid} = erlang:port_info(Port, os_pid),
         MRef = erlang:monitor(process, Parent),
-        receive 
+        receive
             demonitor ->
                 erlang:demonitor(MRef);
             kill ->
@@ -259,7 +272,7 @@ receive_port_data(Port) ->
         {Port, {data, <<?OP_OK:8, _Ref:32, "undefined">>}} ->
             {ok, undefined};
         {Port, {data, <<?OP_OK:8, _Ref:32, Response/binary>>}} ->
-            case catch jsx:decode(Response, [return_maps]) of 
+            case catch jsx:decode(Response, [return_maps]) of
                 {'EXIT', _F} ->
                     {ok, Response};
                 R ->

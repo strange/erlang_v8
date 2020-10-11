@@ -107,11 +107,15 @@ bool CommandLoop(VM& vm) {
                 FTRACE("Ignoring reset: %i\n", packet.ref);
                 // reset = true;
                 break;
+	    case OP_COMPILE_MODULE:
+		FTRACE("Compiling module: %i\n", packet.ref);
+		vm.CompileModule(&packet);
+		break;
         }
         vm.PumpMessageLoop();
         packet = (const Packet){ 0 };
     }
-    Isolate::GetCurrent()->ContextDisposedNotification(); 
+    Isolate::GetCurrent()->ContextDisposedNotification();
     return reset;
 }
 

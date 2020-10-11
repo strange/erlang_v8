@@ -11,6 +11,7 @@ const uint8_t OP_CALL = 2;
 const uint8_t OP_CREATE_CONTEXT = 3;
 const uint8_t OP_DESTROY_CONTEXT = 4;
 const uint8_t OP_RESET_VM = 5;
+const uint8_t OP_COMPILE_MODULE = 6;
 
 struct Packet {
     uint8_t op;

@@ -20,7 +20,7 @@ class VM {
 
         void Eval(Packet *packet);
         void Call(Packet *packet);
-
+        void CompileModule(Packet *packet);
         void PumpMessageLoop();
         void TerminateExecution();
 
