@@ -224,13 +224,15 @@ void VM::Call(Packet* packet) {
         pthread_join(t, &res);
 
         if (eval_result.IsEmpty()) {
+        	delete[] args;
             assert(try_catch.HasCaught());
             ReportException(isolate, &try_catch);
         } else {
             Local<String> fn = String::NewFromUtf8(isolate, "__call");
             Local<Function> function = Local<Function>::Cast(global->Get(fn));
             Local<Value> result = function->Call(global, len, args);
-
+			delete[] args;
+			
             if (result.IsEmpty()) {
                 assert(try_catch.HasCaught());
                 ReportException(isolate, &try_catch);
