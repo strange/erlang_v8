@@ -105,6 +105,59 @@ I'm also working on
 [strange/erlang-v8-lib](https://github.com/strange/erlang-v8-lib), a little
 framework that, among other things, implements a pool.
 
+## Updating V8
+
+There are new tagged releases from the official V8 repo every four weeks;
+however, not all are *stable*.  Keep reading...
+
+However, DO NOT merely pull from their git repo.
+
+First, find the latest *stable* tagged version
+https://gist.github.com/domenic/aca7774a5d94156bfcc1
+
+For Linux and Mac, look for the `stable` channel of each within the
+[OmahaProxy](https://omahaproxy.appspot.com/) table.  (If your browser
+window is too narrow, be sure to scroll *right* to expose the `v8_version`
+column after locating the appropriate row.)
+
+Ideally, that version string may be inserted into our
+[Makefile](c_src/Makefile) as the value of `V8_VERSION`, and a local build
+is successful.
+
+### Building V8 The Hard Way
+
+**Only if the preceding approach fails** consistently, a full build of V8
+requires building from their sources directly, and confirm that the tagged
+*stable* release actually builds and passes its own test.
+
+Their instruction cover building on both
+[Linux and Mac](https://v8.dev/docs/source-code).
+
+Expanding upon the instructions linked above:
+
+- They neglect mentioning that the initial fetch is time-consuming:
+  + e.g., 50+ minutes via gigabit fiber
+  + while that's downloading, also install
+    [bazel](https://bazel.build/);
+    e.g., as binary release of
+    [bazelisk](https://github.com/bazelbuild/bazelisk/releases)
+- Their `gclient` command apparently requires a subcommand:
+  + `gclient sync`
+
+once fetched, start with the latest *stable* tagged version from the
+Gist instructions linked above, and iterate backwards.
+
+Confirm that their tagged release actually builds and passes its own tests,
+and assuming one of the flavors of [bazel](https://bazel.build/) has been
+installed, build V8:
+
+    bazel build v8
+    bazel test v8
+
+Once a build passes its own tests, a Makefile may be generated from Bazel,
+in theory.  Then, splice it into ours.  See
+[SO](https://stackoverflow.com/questions/58035752/building-makefile-using-bazel).
+
 ## TODO
 
 - Use custom protocol to support more data types (binary, dates etc)
